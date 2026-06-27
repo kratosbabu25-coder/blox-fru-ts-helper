@@ -1,41 +1,18 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
--- [ GÜVENLİ IŞINLANMA (TWEEN) - Anti-Cheat Bypass ]
--- Blox Fruits anında ışınlanmayı (CFrame) banlar. Bu yüzden profesyonel scriptler karakteri havada süzülerek götürür.
-local function TweenTeleport(targetCFrame)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    
-    local hrp = char.HumanoidRootPart
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local speed = 300 -- Hız 350'yi geçerse oyun atabilir.
-    local time = distance / speed
-    
-    -- Karakterin düşmemesi için yerçekimini sıfırla
-    local bv = hrp:FindFirstChild("TweenVelocity") or Instance.new("BodyVelocity", hrp)
-    bv.Name = "TweenVelocity"
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = Vector3.new(0, 0, 0)
-    
-    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-    
-    tween:Play()
-    tween.Completed:Wait() -- Işınlanma bitene kadar bekle
-    
-    if bv then bv:Destroy() end
-end
-
--- [ ARAYÜZ (AKOF KING STYLE) ]
+-- [ ARAYÜZ KURULUMU ]
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "ProHubUI"
+ScreenGui.Name = "GundogdiUI"
 
--- Sağ Üst Menü Butonu (Yuvarlak)
+-- Sağ Üst Menü Butonu
 local ToggleBtn = Instance.new("ImageButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0.95, -25, 0.05, 0)
@@ -54,9 +31,10 @@ MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
 
+-- PANEL İSMİ (İstediğin gibi değiştirildi)
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "BLOX FRUITS PRO HUB"
+Title.Text = "gündoğdisex"
 Title.TextColor3 = Color3.fromRGB(255, 0, 0)
 Title.Font = Enum.Font.GothamBold
 Title.BackgroundTransparency = 1
@@ -65,7 +43,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Gelişmiş Switch Fonksiyonu
 local function CreateToggle(name, yPos, callback)
     local Frame = Instance.new("Frame", MainFrame)
     Frame.Size = UDim2.new(0.9, 0, 0, 40)
@@ -98,65 +75,134 @@ local function CreateToggle(name, yPos, callback)
     end)
 end
 
--- [ HİLE ÖZELLİKLERİ ]
+-- [ HİLELER (Sorunsuz Çalışan Versiyonlar) ]
 
--- 1. Güvenli Uçuş / Noclip
-local noclipConnection
-CreateToggle("Güvenli Uçuş (Noclip)", 50, function(state)
-    local char = LocalPlayer.Character
-    if state then
-        noclipConnection = RunService.Stepped:Connect(function()
-            if char then
-                for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end)
-    else
-        if noclipConnection then noclipConnection:Disconnect() end
-    end
-end)
-
--- 2. Meyve Bulucu (Fruit ESP & Teleport)
-local autoFruitLoop = false
-CreateToggle("Otomatik Meyve Topla", 100, function(state)
-    autoFruitLoop = state
-    while autoFruitLoop do
-        task.wait(1)
-        -- Workspace içindeki düşmüş meyveleri arar
-        local foundFruit = false
-        for _, obj in pairs(Workspace:GetChildren()) do
-            if obj:IsA("Tool") and string.find(string.lower(obj.Name), "fruit") then
-                print("Meyve Bulundu: " .. obj.Name .. " - Işınlanılıyor...")
-                TweenTeleport(obj.Handle.CFrame)
-                foundFruit = true
-                task.wait(2) -- Alması için biraz bekle
-                break
-            end
-        end
-        if not foundFruit then
-            print("Haritada meyve bulunamadı, bekleniyor...")
-        end
-    end
-end)
-
--- 3. Hızlı Yürüme (Anti-Cheat'e takılmayan versiyon)
+-- 1. SPEED HACK (Zorunlu Döngü)
 local speedLoop
-CreateToggle("Speed Hack (Güvenli)", 150, function(state)
+CreateToggle("Speed Hack", 50, function(state)
     if state then
+        -- Blox Fruits hızı sıfırlamasın diye saniyede 60 kere gücümüzü zorluyoruz
         speedLoop = RunService.Heartbeat:Connect(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid.WalkSpeed = 80 -- 80 üstü Blox Fruits'te bazen geri atar
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = 100
             end
         end)
     else
         if speedLoop then speedLoop:Disconnect() end
-        local char = LocalPlayer.Character
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+end)
+
+-- 2. GERÇEK FLY (Kamera Yönüne Doğru WASD ile Uçuş)
+local flyLoop
+local bg, bv
+CreateToggle("Fly Mode", 100, function(state)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if state and hrp then
+        bg = Instance.new("BodyGyro", hrp)
+        bg.P = 9e4
+        bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bg.cframe = hrp.CFrame
+
+        bv = Instance.new("BodyVelocity", hrp)
+        bv.velocity = Vector3.new(0, 0, 0)
+        bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+
+        flyLoop = RunService.RenderStepped:Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.PlatformStand = true -- Karakteri havada tutar
+                bg.cframe = Camera.CFrame -- Yüzümüz kameraya döner
+                
+                local moveDir = Vector3.new(0,0,0)
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Camera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - Camera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - Camera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Camera.CFrame.RightVector end
+                
+                bv.velocity = moveDir * 100 -- Uçuş Hızı
+            end
+        end)
+    else
+        if flyLoop then flyLoop:Disconnect() end
+        if bg then bg:Destroy() end
+        if bv then bv:Destroy() end
         if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.WalkSpeed = 16
+            char.Humanoid.PlatformStand = false
+        end
+    end
+end)
+
+-- 3. MEYVE BULUCU (ESP ve Teleport)
+local fruitFinderActive = false
+CreateToggle("Meyve Bulucu", 150, function(state)
+    fruitFinderActive = state
+    
+    if fruitFinderActive then
+        task.spawn(function()
+            while fruitFinderActive do
+                local found = false
+                
+                -- Bütün haritayı tara
+                for _, obj in pairs(Workspace:GetChildren()) do
+                    -- Meyveler Tool'dur ve içinde "Fruit" kelimesi geçer
+                    if obj:IsA("Tool") and string.find(string.lower(obj.Name), "fruit") then
+                        local handle = obj:FindFirstChild("Handle")
+                        if handle then
+                            found = true
+                            
+                            -- 1) ESP OLUŞTUR (Meyveyi Ekranda Göster)
+                            if not handle:FindFirstChild("FruitESP") then
+                                local bgui = Instance.new("BillboardGui", handle)
+                                bgui.Name = "FruitESP"
+                                bgui.AlwaysOnTop = true
+                                bgui.Size = UDim2.new(0, 200, 0, 50)
+                                
+                                local txt = Instance.new("TextLabel", bgui)
+                                txt.Size = UDim2.new(1, 0, 1, 0)
+                                txt.Text = "🍎 " .. obj.Name .. " 🍎"
+                                txt.TextColor3 = Color3.fromRGB(0, 255, 0)
+                                txt.BackgroundTransparency = 1
+                                txt.TextScaled = true
+                                txt.Font = Enum.Font.GothamBold
+                            end
+                            
+                            -- 2) MEYVEYE TWEEN ILE IŞINLAN (Kodu bulup yöne gitme)
+                            local char = LocalPlayer.Character
+                            if char and char:FindFirstChild("HumanoidRootPart") then
+                                local hrp = char.HumanoidRootPart
+                                local dist = (hrp.Position - handle.Position).Magnitude
+                                local speed = 250 -- Işınlanma hızı (ban yememek için 250 ideal)
+                                
+                                local tweenInfo = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
+                                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = handle.CFrame})
+                                tween:Play()
+                                tween.Completed:Wait() -- Meyveye gidene kadar bekle
+                            end
+                            break -- Bir meyveyi alınca döngüyü kır, diğerine sonra geçer
+                        end
+                    end
+                end
+                
+                if not found then
+                    print("[gündoğdisex]: Yerde meyve yok, bekleniyor...")
+                end
+                
+                task.wait(1) -- Oyunu kastırmamak için 1 saniye bekle
+            end
+        end)
+    else
+        -- Özellik kapatılırsa ekrandaki ESP yazılarını sil
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj:IsA("Tool") and string.find(string.lower(obj.Name), "fruit") then
+                local handle = obj:FindFirstChild("Handle")
+                if handle and handle:FindFirstChild("FruitESP") then
+                    handle.FruitESP:Destroy()
+                end
+            end
         end
     end
 end)
