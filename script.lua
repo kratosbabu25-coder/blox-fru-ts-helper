@@ -325,7 +325,7 @@ MainFrame.Active = true; MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 50); Title.BackgroundTransparency = 1
-Title.Text = "GÜNDOĞDİSEX V2.1 👑"
+Title.Text = "Abdullahınamınısikim V2.1 👑"
 Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 28
 
 local Scroll = Instance.new("ScrollingFrame", MainFrame)
