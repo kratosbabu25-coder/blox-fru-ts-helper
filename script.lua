@@ -1,4 +1,4 @@
--- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION (W/ TELEPORT & ADMIN) \\
+-- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION (W/ TELEPORT & ADMIN & FIXES) \\
 
 -- ==========================================
 -- 1. KULLANICININ ÖZEL AYARLARI (TEAM SELECT & FPS BOOST)
@@ -118,14 +118,25 @@ local States = {
 -- ==========================================
 -- 3. HİLE MOTORLARI
 -- ==========================================
+local wasNoclip = false
+
 R.Stepped:Connect(function()
     local char = L.Character
     if char then
         if States.Noclip then
-            for _, v in pairs(char:GetDescendants()) do 
+            wasNoclip = true
+            for _, v in pairs(char:GetChildren()) do 
                 if v:IsA("BasePart") then v.CanCollide = false end 
             end
+        elseif wasNoclip then
+            wasNoclip = false
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("BasePart") and (v.Name == "HumanoidRootPart" or v.Name == "Torso" or v.Name == "UpperTorso" or v.Name == "LowerTorso" or v.Name == "Head") then
+                    v.CanCollide = true
+                end
+            end
         end
+
         if States.SpeedHack and char:FindFirstChild("Humanoid") then
             char.Humanoid.WalkSpeed = States.SpeedValue
         end
@@ -170,41 +181,90 @@ task.spawn(function()
     end
 end)
 
+-- FRUIT FINDER & AUTO-MOVE (GÜNCELLENDİ)
 task.spawn(function()
-    while task.wait(1) do
-        local fruitCount, closestFruit, shortestDistance = 0, nil, math.huge
+    while task.wait(0.5) do 
+        local fruitCount, closestFruitPart, shortestDistance = 0, nil, math.huge
         local char = L.Character
         local H = char and char:FindFirstChild("HumanoidRootPart")
 
         for _, o in pairs(W:GetChildren()) do
-            if o:IsA("Tool") and o.Name:lower():find("fruit") then
-                fruitCount = fruitCount + 1
-                if States.FruitFinder then
-                    if not o:FindFirstChild("ESP_GUI") then
-                        local b = Instance.new("BillboardGui", o); b.Name = "ESP_GUI"; b.Size = UDim2.new(0, 200, 0, 50); b.AlwaysOnTop = true
-                        local l = Instance.new("TextLabel", b); l.Size = UDim2.new(1,0,1,0); l.Text = o.Name; l.TextColor3 = Color3.new(1,0,0); l.BackgroundTransparency = 1; l.Font = Enum.Font.GothamBold
-                        R.RenderStepped:Connect(function()
-                            if char and H and o:FindFirstChild("Handle") then
-                                local dist = (H.Position - o.Handle.Position).Magnitude
-                                l.TextSize = math.clamp(150 / (dist / 10), 15, 40)
-                            end
-                        end)
+            local nameLower = string.lower(o.Name)
+            
+            -- Sadece Tool değil, oyunun spawn ettiği Model halindeki meyveleri de bulur
+            if string.find(nameLower, "fruit") and (o:IsA("Tool") or o:IsA("Model")) then
+                
+                -- Teleport ve ESP için fiziksel parçayı bulur
+                local targetPart = o:FindFirstChild("Handle") or o:FindFirstChildOfClass("MeshPart") or o:FindFirstChildOfClass("Part")
+                
+                if targetPart then
+                    fruitCount = fruitCount + 1
+                    
+                    -- İsmi Dinamik Olarak Formatla (Sadece Meyve adını bırakır, Örn: "Dough", "Quake")
+                    local rawName = o.Name
+                    local cleanName = string.gsub(rawName, " Fruit", "")
+                    cleanName = string.gsub(cleanName, "Fruit ", "")
+                    cleanName = string.gsub(cleanName, "Fruit", "")
+                    
+                    -- Eğer isim hala boşsa oyun gizli bir meyve spawn etmiştir
+                    if cleanName == "" or cleanName == " " then
+                        cleanName = "❓ GİZEMLİ MEYVE ❓"
+                    else
+                        cleanName = "🍎 " .. cleanName
                     end
-                else
-                    if o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
-                end
 
-                if H and o:FindFirstChild("Handle") then
-                    local dist = (H.Position - o.Handle.Position).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance, closestFruit = dist, o
+                    -- ESP SİSTEMİ
+                    if States.FruitFinder then
+                        local esp = o:FindFirstChild("ESP_GUI")
+                        if not esp then
+                            esp = Instance.new("BillboardGui", o)
+                            esp.Name = "ESP_GUI"
+                            esp.Size = UDim2.new(0, 200, 0, 50)
+                            esp.AlwaysOnTop = true
+                            esp.Adornee = targetPart 
+
+                            local l = Instance.new("TextLabel", esp)
+                            l.Name = "NameLabel"
+                            l.Size = UDim2.new(1,0,1,0)
+                            l.BackgroundTransparency = 1
+                            -- Gizemli meyve ise rengi Kırmızı-Sarı arası yap, değilse Parlak Yeşil
+                            if string.find(cleanName, "GİZEMLİ") then
+                                l.TextColor3 = Color3.fromRGB(255, 85, 0) 
+                            else
+                                l.TextColor3 = Color3.fromRGB(85, 255, 127) 
+                            end
+                            l.TextStrokeTransparency = 0 
+                            l.Font = Enum.Font.GothamBlack
+                        end
+
+                        if esp and H then
+                            local dist = (H.Position - targetPart.Position).Magnitude
+                            local lbl = esp:FindFirstChild("NameLabel")
+                            if lbl then
+                                lbl.Text = string.format("%s\n[%.0f m]", cleanName, dist)
+                                lbl.TextSize = math.clamp(150 / (dist / 10), 12, 28)
+                            end
+                        end
+                    else
+                        if o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
+                    end
+
+                    -- AUTO-MOVE İÇİN MESAFE HESAPLAMA
+                    if H then
+                        local dist = (H.Position - targetPart.Position).Magnitude
+                        if dist < shortestDistance then
+                            shortestDistance = dist
+                            closestFruitPart = targetPart
+                        end
                     end
                 end
             end
         end
         _G.UpdateFruitCount = fruitCount
-        if States.AutoMoveFruit and closestFruit and H then
-            T:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruit.Handle.CFrame}):Play()
+        
+        -- AUTO-MOVE İŞLEMİ (Doğrudan CFrame kullanılarak düzeltildi)
+        if States.AutoMoveFruit and closestFruitPart and H then
+            T:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame}):Play()
         end
     end
 end)
@@ -218,7 +278,7 @@ local ScreenGui = Instance.new("ScreenGui", C)
 ScreenGui.Name = "GDX_V2"
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 480, 0, 700) -- Boyut büyütüldü
+MainFrame.Size = UDim2.new(0, 480, 0, 700) 
 MainFrame.Position = UDim2.new(0.5, -240, 0.5, -350)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 5, 5)
 MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
@@ -301,7 +361,6 @@ CreateButton("🖥️ Open F9 Developer Console", "FORCE OPEN", function()
     pcall(function() game:GetService("StarterGui"):SetCore("DevConsoleVisible", true) end)
 end)
 CreateButton("👑 Local God Mode (Invisible)", "EXECUTE", function()
-    -- Karakterin kollarını/bacaklarını görünmez yapıp hedef alınmayı zorlaştırır
     if L.Character then
         for _,v in pairs(L.Character:GetDescendants()) do
             if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.Transparency = 1 end
@@ -322,7 +381,6 @@ CreateToggle("👻 No Clip (Duvar Geçişi)", "Noclip", "RunService Stepped Bypa
 CreateToggle("⚔️ Auto Farm (Safe Hover)", "AutoFarm", "10 Studs Up + 1st Slot Force")
 
 CreateCategory("TELEPORT LOCATIONS")
--- Adaları otomatik algılayıp ışınlanma butonlarını dizer
 if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations") then
     local islands = W._WorldOrigin.Locations:GetChildren()
     if #islands > 0 then
@@ -330,7 +388,6 @@ if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations
             CreateButton("🏝️ " .. island.Name, "TELEPORT", function()
                 local hrp = L.Character and L.Character:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    -- Ada merkezinin 50 birim üstüne yumuşak iniş
                     T:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = island.CFrame + Vector3.new(0, 50, 0)}):Play()
                 end
             end)
@@ -353,7 +410,6 @@ task.spawn(function()
 end)
 CreateToggle("⭐ Auto-Move to Fruit", "AutoMoveFruit", "Tweens to nearest fruit")
 CreateButton("🎁 Give/Spawn Random Fruit", "🍒 ROLL FRUIT", function()
-    -- Blox Fruits Cousin (Gacha) sisteminden meyve satın alma komutu
     pcall(function() Rep.Remotes.CommF_:InvokeServer("Cousin", "Buy") end)
 end)
 
@@ -393,7 +449,6 @@ U.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Scroll dinamik boyutu
 Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 20)
 UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 20)
