@@ -1,4 +1,32 @@
--- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION (W/ TELEPORT & ADMIN & FIXES) \\
+-- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION (IMAGE ESP & FULL MAP SCAN) \\
+
+-- ==========================================
+-- 0. MEYVE RESİM AYARLARI (BURAYI KENDİNE GÖRE DOLDUR)
+-- ==========================================
+-- İpucu: Roblox'tan aldığın Image ID'leri buraya gir. (Örn: "rbxassetid://123456789")
+-- Listede olmayan bir meyve gelirse veya boş bırakırsan "Default" resmi kullanılır.
+local FruitImages = {
+    ["Kitsune"] = "rbxassetid://0000000",
+    ["T-Rex"]   = "rbxassetid://0000000",
+    ["Leopard"] = "rbxassetid://0000000",
+    ["Dough"]   = "rbxassetid://0000000",
+    ["Dragon"]  = "rbxassetid://0000000",
+    ["Rumble"]  = "rbxassetid://0000000",
+    ["Quake"]   = "rbxassetid://0000000",
+    ["Buddha"]  = "rbxassetid://0000000",
+    ["Portal"]  = "rbxassetid://0000000",
+    ["Magma"]   = "rbxassetid://0000000",
+    ["Light"]   = "rbxassetid://0000000",
+    ["Ice"]     = "rbxassetid://0000000",
+    ["Dark"]    = "rbxassetid://0000000",
+    ["Flame"]   = "rbxassetid://0000000",
+    ["Sand"]    = "rbxassetid://0000000",
+    ["Rocket"]  = "rbxassetid://0000000",
+    ["Spin"]    = "rbxassetid://0000000",
+    ["Chop"]    = "rbxassetid://0000000",
+    -- GİZEMLİ VEYA LİSTEDE OLMAYAN MEYVELER İÇİN VARSAYILAN RESİM:
+    ["Default"] = "rbxassetid://0000000" 
+}
 
 -- ==========================================
 -- 1. KULLANICININ ÖZEL AYARLARI (TEAM SELECT & FPS BOOST)
@@ -181,57 +209,71 @@ task.spawn(function()
     end
 end)
 
--- FRUIT FINDER & AUTO-MOVE (GÜNCELLENDİ)
+-- FRUIT FINDER & AUTO-MOVE (RESİM + İSİM + FULL MAP TARAMASI EKLENDİ)
 task.spawn(function()
-    while task.wait(0.5) do 
+    while task.wait(1) do -- Optimizasyon için 1 saniyede bir tarar (GetDescendants büyük bir işlemdir)
         local fruitCount, closestFruitPart, shortestDistance = 0, nil, math.huge
         local char = L.Character
         local H = char and char:FindFirstChild("HumanoidRootPart")
 
-        for _, o in pairs(W:GetChildren()) do
+        -- Sadece ana yüzeyi değil, haritadaki (yüklenmiş) tüm alt klasörleri ve ağaç altlarını tarar
+        for _, o in pairs(W:GetDescendants()) do
             local nameLower = string.lower(o.Name)
             
-            -- Sadece Tool değil, oyunun spawn ettiği Model halindeki meyveleri de bulur
             if string.find(nameLower, "fruit") and (o:IsA("Tool") or o:IsA("Model")) then
-                
-                -- Teleport ve ESP için fiziksel parçayı bulur
                 local targetPart = o:FindFirstChild("Handle") or o:FindFirstChildOfClass("MeshPart") or o:FindFirstChildOfClass("Part")
                 
                 if targetPart then
                     fruitCount = fruitCount + 1
                     
-                    -- İsmi Dinamik Olarak Formatla (Sadece Meyve adını bırakır, Örn: "Dough", "Quake")
-                    local rawName = o.Name
-                    local cleanName = string.gsub(rawName, " Fruit", "")
+                    -- İsmi Temizle ve Sadece Meyve Adını Bırak
+                    local cleanName = o.Name
+                    cleanName = string.gsub(cleanName, " Fruit", "")
                     cleanName = string.gsub(cleanName, "Fruit ", "")
                     cleanName = string.gsub(cleanName, "Fruit", "")
+                    cleanName = string.gsub(cleanName, "Blox", "")
+                    cleanName = cleanName:match("^%s*(.-)%s*$") -- Baş ve sondaki boşlukları sil
                     
-                    -- Eğer isim hala boşsa oyun gizli bir meyve spawn etmiştir
-                    if cleanName == "" or cleanName == " " then
+                    local isMysterious = false
+                    if cleanName == "" then
                         cleanName = "❓ GİZEMLİ MEYVE ❓"
-                    else
-                        cleanName = "🍎 " .. cleanName
+                        isMysterious = true
                     end
 
-                    -- ESP SİSTEMİ
+                    -- Resmi Belirle
+                    local iconImage = FruitImages["Default"]
+                    if not isMysterious and FruitImages[cleanName] and FruitImages[cleanName] ~= "rbxassetid://0000000" then
+                        iconImage = FruitImages[cleanName]
+                    end
+
+                    -- ESP UI OLUŞTURMA
                     if States.FruitFinder then
                         local esp = o:FindFirstChild("ESP_GUI")
                         if not esp then
                             esp = Instance.new("BillboardGui", o)
                             esp.Name = "ESP_GUI"
-                            esp.Size = UDim2.new(0, 200, 0, 50)
+                            esp.Size = UDim2.new(0, 100, 0, 130) -- Hem resim hem yazı sığacak kadar uzun
                             esp.AlwaysOnTop = true
                             esp.Adornee = targetPart 
 
+                            -- Resim Çerçevesi
+                            local icon = Instance.new("ImageLabel", esp)
+                            icon.Name = "Icon"
+                            icon.Size = UDim2.new(1, 0, 0, 100)
+                            icon.BackgroundTransparency = 1
+                            icon.Image = iconImage
+
+                            -- İsim Çerçevesi
                             local l = Instance.new("TextLabel", esp)
                             l.Name = "NameLabel"
-                            l.Size = UDim2.new(1,0,1,0)
+                            l.Size = UDim2.new(2, 0, 0, 30) -- Yazı taşmasın diye genişletildi
+                            l.Position = UDim2.new(-0.5, 0, 0, 100)
                             l.BackgroundTransparency = 1
-                            -- Gizemli meyve ise rengi Kırmızı-Sarı arası yap, değilse Parlak Yeşil
-                            if string.find(cleanName, "GİZEMLİ") then
-                                l.TextColor3 = Color3.fromRGB(255, 85, 0) 
+                            
+                            if isMysterious then
+                                l.TextColor3 = Color3.fromRGB(255, 85, 0) -- Turuncu/Kırmızımsı
                             else
-                                l.TextColor3 = Color3.fromRGB(85, 255, 127) 
+                                l.TextColor3 = Color3.fromRGB(85, 255, 127) -- Parlak Yeşil
                             end
                             l.TextStrokeTransparency = 0 
                             l.Font = Enum.Font.GothamBlack
@@ -240,16 +282,21 @@ task.spawn(function()
                         if esp and H then
                             local dist = (H.Position - targetPart.Position).Magnitude
                             local lbl = esp:FindFirstChild("NameLabel")
+                            local iconUI = esp:FindFirstChild("Icon")
+                            
                             if lbl then
                                 lbl.Text = string.format("%s\n[%.0f m]", cleanName, dist)
-                                lbl.TextSize = math.clamp(150 / (dist / 10), 12, 28)
+                                lbl.TextSize = math.clamp(150 / (dist / 10), 12, 22)
+                            end
+                            -- Dinamik Resim Güncellemesi (Eğer sonradan listede değişiklik yapıldıysa)
+                            if iconUI and iconUI.Image == "" or iconUI.Image == "rbxassetid://0000000" then
+                                iconUI.Image = iconImage
                             end
                         end
                     else
                         if o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
                     end
 
-                    -- AUTO-MOVE İÇİN MESAFE HESAPLAMA
                     if H then
                         local dist = (H.Position - targetPart.Position).Magnitude
                         if dist < shortestDistance then
@@ -262,7 +309,6 @@ task.spawn(function()
         end
         _G.UpdateFruitCount = fruitCount
         
-        -- AUTO-MOVE İŞLEMİ (Doğrudan CFrame kullanılarak düzeltildi)
         if States.AutoMoveFruit and closestFruitPart and H then
             T:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame}):Play()
         end
