@@ -1,4 +1,4 @@
--- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION \\
+-- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION (W/ TELEPORT & ADMIN) \\
 
 -- ==========================================
 -- 1. KULLANICININ ÖZEL AYARLARI (TEAM SELECT & FPS BOOST)
@@ -104,7 +104,6 @@ local Rep = game:GetService("ReplicatedStorage")
 local L = P.LocalPlayer
 local Cam = W.CurrentCamera
 
--- Hile Durumları (Toggles)
 local States = {
     SpeedHack = false,
     SpeedValue = 75,
@@ -117,31 +116,25 @@ local States = {
 }
 
 -- ==========================================
--- 3. HİLE MOTORLARI (CORE LOGIC)
+-- 3. HİLE MOTORLARI
 -- ==========================================
-
--- Noclip, Speed Hack & Infinite Stamina
 R.Stepped:Connect(function()
     local char = L.Character
     if char then
-        -- Noclip
         if States.Noclip then
             for _, v in pairs(char:GetDescendants()) do 
                 if v:IsA("BasePart") then v.CanCollide = false end 
             end
         end
-        -- Speed Hack
         if States.SpeedHack and char:FindFirstChild("Humanoid") then
             char.Humanoid.WalkSpeed = States.SpeedValue
         end
-        -- Infinite Stamina (Görsel ve Lokal Enerji Sabitleme)
-        if States.InfStamina then
-            if char:FindFirstChild("Energy") then char.Energy.Value = char.Energy.MaxValue end
+        if States.InfStamina and char:FindFirstChild("Energy") then 
+            char.Energy.Value = char.Energy.MaxValue 
         end
     end
 end)
 
--- Fly Mode
 R.Heartbeat:Connect(function()
     if States.Fly and L.Character and L.Character:FindFirstChild("HumanoidRootPart") then
         local H = L.Character.HumanoidRootPart
@@ -150,12 +143,11 @@ R.Heartbeat:Connect(function()
         if U:IsKeyDown(Enum.KeyCode.S) then D -= Cam.CFrame.LookVector end
         if U:IsKeyDown(Enum.KeyCode.A) then D -= Cam.CFrame.RightVector end
         if U:IsKeyDown(Enum.KeyCode.D) then D += Cam.CFrame.RightVector end
-        H.CFrame += D * (States.SpeedValue / 20) -- Hızı SpeedHack sliderına bağladım
+        H.CFrame += D * (States.SpeedValue / 20)
         H.Velocity = Vector3.new()
     end
 end)
 
--- Auto Farm (Safe Hover 10 Stud + 1. Slot Force)
 task.spawn(function()
     while task.wait(0.1) do
         if States.AutoFarm and W:FindFirstChild("Enemies") then
@@ -166,7 +158,6 @@ task.spawn(function()
                     char.Humanoid:EquipTool(firstTool)
                 end
             end
-            
             for _, n in pairs(W.Enemies:GetChildren()) do
                 if n:FindFirstChild("Humanoid") and n.Humanoid.Health > 0 and n:FindFirstChild("HumanoidRootPart") then
                     local H = char:FindFirstChild("HumanoidRootPart")
@@ -179,20 +170,15 @@ task.spawn(function()
     end
 end)
 
--- Fruit Finder ESP & Auto-Move
 task.spawn(function()
     while task.wait(1) do
-        local fruitCount = 0
-        local closestFruit = nil
-        local shortestDistance = math.huge
+        local fruitCount, closestFruit, shortestDistance = 0, nil, math.huge
         local char = L.Character
         local H = char and char:FindFirstChild("HumanoidRootPart")
 
         for _, o in pairs(W:GetChildren()) do
             if o:IsA("Tool") and o.Name:lower():find("fruit") then
                 fruitCount = fruitCount + 1
-                
-                -- ESP Sistemi
                 if States.FruitFinder then
                     if not o:FindFirstChild("ESP_GUI") then
                         local b = Instance.new("BillboardGui", o); b.Name = "ESP_GUI"; b.Size = UDim2.new(0, 200, 0, 50); b.AlwaysOnTop = true
@@ -208,21 +194,15 @@ task.spawn(function()
                     if o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
                 end
 
-                -- En yakın meyveyi bulma (Auto-Move için)
                 if H and o:FindFirstChild("Handle") then
                     local dist = (H.Position - o.Handle.Position).Magnitude
                     if dist < shortestDistance then
-                        shortestDistance = dist
-                        closestFruit = o
+                        shortestDistance, closestFruit = dist, o
                     end
                 end
             end
         end
-
-        -- Arayüzdeki meyve sayısını güncelleme eventi (UI oluşturulunca bağlanacak)
         _G.UpdateFruitCount = fruitCount
-
-        -- Auto-Move to Fruit
         if States.AutoMoveFruit and closestFruit and H then
             T:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruit.Handle.CFrame}):Play()
         end
@@ -238,55 +218,40 @@ local ScreenGui = Instance.new("ScreenGui", C)
 ScreenGui.Name = "GDX_V2"
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 450, 0, 650)
-MainFrame.Position = UDim2.new(0.5, -225, 0.5, -325)
+MainFrame.Size = UDim2.new(0, 480, 0, 700) -- Boyut büyütüldü
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -350)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 5, 5)
 MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
 MainFrame.BorderSizePixel = 2
-MainFrame.Active = true
-MainFrame.Draggable = true
+MainFrame.Active = true; MainFrame.Draggable = true
 
--- Başlık
 local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.BackgroundTransparency = 1
+Title.Size = UDim2.new(1, 0, 0, 50); Title.BackgroundTransparency = 1
 Title.Text = "GÜNDOĞDİSEX V2.1 👑"
-Title.TextColor3 = Color3.fromRGB(255, 50, 50)
-Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 28
+Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 28
 
--- İçerik Kaydırma Alanı
 local Scroll = Instance.new("ScrollingFrame", MainFrame)
-Scroll.Size = UDim2.new(1, -20, 1, -110)
-Scroll.Position = UDim2.new(0, 10, 0, 50)
-Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarThickness = 4
-Scroll.ScrollBarImageColor3 = Color3.fromRGB(255,0,0)
+Scroll.Size = UDim2.new(1, -20, 1, -110); Scroll.Position = UDim2.new(0, 10, 0, 50)
+Scroll.BackgroundTransparency = 1; Scroll.ScrollBarThickness = 6; Scroll.ScrollBarImageColor3 = Color3.fromRGB(255,0,0)
 
 local UIList = Instance.new("UIListLayout", Scroll)
-UIList.Padding = UDim.new(0, 8)
-UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 8); UIList.SortOrder = Enum.SortOrder.LayoutOrder
 
--- /// UI YARDIMCI FONKSİYONLARI \\\ --
+-- UI Fonksiyonları
 local function CreateCategory(name)
     local lbl = Instance.new("TextLabel", Scroll)
-    lbl.Size = UDim2.new(1, 0, 0, 25)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = "  " .. name
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 16
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Size = UDim2.new(1, 0, 0, 30); lbl.BackgroundTransparency = 1
+    lbl.Text = "  ■ " .. name; lbl.TextColor3 = Color3.fromRGB(255, 200, 200); lbl.Font = Enum.Font.GothamBlack
+    lbl.TextSize = 18; lbl.TextXAlignment = Enum.TextXAlignment.Left
 end
 
 local function CreateToggle(name, stateKey, extraText)
     local frame = Instance.new("Frame", Scroll)
-    frame.Size = UDim2.new(1, 0, 0, 40)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
+    frame.Size = UDim2.new(1, 0, 0, 45); frame.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
 
     local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(0.6, 0, 1, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.Size = UDim2.new(0.6, 0, 0.6, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
     lbl.BackgroundTransparency = 1; lbl.Text = name; lbl.TextColor3 = Color3.new(1,1,1)
     lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 14; lbl.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -295,14 +260,13 @@ local function CreateToggle(name, stateKey, extraText)
         sub.Size = UDim2.new(0.6, 0, 0.4, 0); sub.Position = UDim2.new(0, 10, 0.6, 0)
         sub.BackgroundTransparency = 1; sub.Text = extraText; sub.TextColor3 = Color3.fromRGB(150,150,150)
         sub.Font = Enum.Font.Gotham; sub.TextSize = 11; sub.TextXAlignment = Enum.TextXAlignment.Left
-        lbl.Size = UDim2.new(0.6, 0, 0.6, 0)
     end
 
     local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(0, 60, 0, 25); btn.Position = UDim2.new(1, -70, 0.5, -12.5)
+    btn.Size = UDim2.new(0, 70, 0, 30); btn.Position = UDim2.new(1, -80, 0.5, -15)
     btn.BackgroundColor3 = States[stateKey] and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
-    btn.Text = States[stateKey] and "ON" or "OFF"
-    btn.TextColor3 = Color3.new(1,1,1); btn.Font = Enum.Font.GothamBold; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.Text = States[stateKey] and "ON" or "OFF"; btn.TextColor3 = Color3.new(1,1,1); btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
     btn.MouseButton1Click:Connect(function()
         States[stateKey] = not States[stateKey]
@@ -314,8 +278,7 @@ end
 
 local function CreateButton(name, btnText, callback)
     local frame = Instance.new("Frame", Scroll)
-    frame.Size = UDim2.new(1, 0, 0, 40)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
+    frame.Size = UDim2.new(1, 0, 0, 45); frame.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
 
     local lbl = Instance.new("TextLabel", frame)
@@ -324,16 +287,27 @@ local function CreateButton(name, btnText, callback)
     lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 14; lbl.TextXAlignment = Enum.TextXAlignment.Left
 
     local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(0, 150, 0, 25); btn.Position = UDim2.new(1, -160, 0.5, -12.5)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 15, 15)
-    btn.BorderColor3 = Color3.fromRGB(255, 0, 0)
-    btn.BorderSizePixel = 1
+    btn.Size = UDim2.new(0, 160, 0, 30); btn.Position = UDim2.new(1, -170, 0.5, -15)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 15, 15); btn.BorderColor3 = Color3.fromRGB(255, 0, 0); btn.BorderSizePixel = 1
     btn.Text = btnText; btn.TextColor3 = Color3.fromRGB(255,100,100); btn.Font = Enum.Font.GothamBold
 
     btn.MouseButton1Click:Connect(callback)
 end
 
--- /// KATEGORİLERİ DOLDURMA \\\ --
+-- /// KATEGORİLER VE İÇERİKLER \\\ --
+
+CreateCategory("LOCAL ADMIN & SYSTEM")
+CreateButton("🖥️ Open F9 Developer Console", "FORCE OPEN", function()
+    pcall(function() game:GetService("StarterGui"):SetCore("DevConsoleVisible", true) end)
+end)
+CreateButton("👑 Local God Mode (Invisible)", "EXECUTE", function()
+    -- Karakterin kollarını/bacaklarını görünmez yapıp hedef alınmayı zorlaştırır
+    if L.Character then
+        for _,v in pairs(L.Character:GetDescendants()) do
+            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.Transparency = 1 end
+        end
+    end
+end)
 
 CreateCategory("PLAYER CHEATS")
 local _, spdLabel = CreateToggle("⚡ Speed Hack (Ayarla: "..States.SpeedValue..")", "SpeedHack")
@@ -347,6 +321,27 @@ CreateToggle("🦅 Fly Mode", "Fly", "Vertical [W/S] Horizontal [Mouse]")
 CreateToggle("👻 No Clip (Duvar Geçişi)", "Noclip", "RunService Stepped Bypassed")
 CreateToggle("⚔️ Auto Farm (Safe Hover)", "AutoFarm", "10 Studs Up + 1st Slot Force")
 
+CreateCategory("TELEPORT LOCATIONS")
+-- Adaları otomatik algılayıp ışınlanma butonlarını dizer
+if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations") then
+    local islands = W._WorldOrigin.Locations:GetChildren()
+    if #islands > 0 then
+        for _, island in pairs(islands) do
+            CreateButton("🏝️ " .. island.Name, "TELEPORT", function()
+                local hrp = L.Character and L.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    -- Ada merkezinin 50 birim üstüne yumuşak iniş
+                    T:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = island.CFrame + Vector3.new(0, 50, 0)}):Play()
+                end
+            end)
+        end
+    else
+        CreateButton("Adalar Yükleniyor...", "BEKLE", function() end)
+    end
+else
+    CreateButton("Bilinmeyen Harita Sürümü", "HATA", function() end)
+end
+
 CreateCategory("FRUIT OPTIONS")
 local fruitFrame, fruitLbl = CreateToggle("🍎 Fruit Finder", "FruitFinder", "0 Fruits Detected!")
 task.spawn(function()
@@ -357,33 +352,25 @@ task.spawn(function()
     end
 end)
 CreateToggle("⭐ Auto-Move to Fruit", "AutoMoveFruit", "Tweens to nearest fruit")
-CreateButton("🎁 Give Random Fruit", "🍒 GENERATE FRUIT", function()
-    -- Blox Fruits Rastgele Meyve Alma Kodu (Cousin)
-    pcall(function()
-        Rep.Remotes.CommF_:InvokeServer("Cousin", "Buy")
-    end)
+CreateButton("🎁 Give/Spawn Random Fruit", "🍒 ROLL FRUIT", function()
+    -- Blox Fruits Cousin (Gacha) sisteminden meyve satın alma komutu
+    pcall(function() Rep.Remotes.CommF_:InvokeServer("Cousin", "Buy") end)
 end)
 
 CreateCategory("STATS BOOST")
 CreateButton("❤️ Max Health", "SET 1000 HP", function()
     if L.Character and L.Character:FindFirstChild("Humanoid") then
-        L.Character.Humanoid.MaxHealth = 1000
-        L.Character.Humanoid.Health = 1000
+        L.Character.Humanoid.MaxHealth = 1000; L.Character.Humanoid.Health = 1000
     end
 end)
 CreateButton("⭐ Max XP", "SET LEVEL 100", function()
-    -- Sadece Local Spoof
-    if L:FindFirstChild("Data") and L.Data:FindFirstChild("Level") then
-        L.Data.Level.Value = 100
-    end
+    if L:FindFirstChild("Data") and L.Data:FindFirstChild("Level") then L.Data.Level.Value = 100 end
 end)
 CreateButton("🔄 Give Stamina", "REFRESH STAMINA", function()
-    if L.Character and L.Character:FindFirstChild("Energy") then
-        L.Character.Energy.Value = L.Character.Energy.MaxValue
-    end
+    if L.Character and L.Character:FindFirstChild("Energy") then L.Character.Energy.Value = L.Character.Energy.MaxValue end
 end)
 
--- Alt Bar (Kaydet, Gizle, Çıkış)
+-- Alt Bar
 local BottomBar = Instance.new("Frame", MainFrame)
 BottomBar.Size = UDim2.new(1, 0, 0, 50); BottomBar.Position = UDim2.new(0, 0, 1, -50)
 BottomBar.BackgroundColor3 = Color3.fromRGB(10, 0, 0)
@@ -400,14 +387,13 @@ AddBottomBtn("SAVE SETTINGS", 0.03, function() print("Settings Saved!") end)
 AddBottomBtn("HIDE MENU [K]", 0.35, function() MainFrame.Visible = false end)
 AddBottomBtn("LOGOUT", 0.67, function() ScreenGui:Destroy() end)
 
--- K Tuşu ile Menü Gizleme/Açma
 U.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if MainFrame then MainFrame.Visible = not MainFrame.Visible end
     end
 end)
 
--- Scroll boyutunu içeriğe göre ayarla
+-- Scroll dinamik boyutu
 Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 20)
 UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 20)
