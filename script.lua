@@ -3,8 +3,6 @@
 -- ==========================================
 -- 0. MEYVE RESİM AYARLARI (BURAYI KENDİNE GÖRE DOLDUR)
 -- ==========================================
--- İpucu: Roblox'tan aldığın Image ID'leri buraya gir. (Örn: "rbxassetid://123456789")
--- Listede olmayan bir meyve gelirse veya boş bırakırsan "Default" resmi kullanılır.
 local FruitImages = {
     ["Kitsune"] = "rbxassetid://0000000",
     ["T-Rex"]   = "rbxassetid://0000000",
@@ -24,7 +22,6 @@ local FruitImages = {
     ["Rocket"]  = "rbxassetid://0000000",
     ["Spin"]    = "rbxassetid://0000000",
     ["Chop"]    = "rbxassetid://0000000",
-    -- GİZEMLİ VEYA LİSTEDE OLMAYAN MEYVELER İÇİN VARSAYILAN RESİM:
     ["Default"] = "rbxassetid://0000000" 
 }
 
@@ -32,91 +29,91 @@ local FruitImages = {
 -- 1. KULLANICININ ÖZEL AYARLARI (TEAM SELECT & FPS BOOST)
 -- ==========================================
 if not _G.Marine or _G.Pirate then
-	spawn(function()
-		while wait() do
-			if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Visible == true then
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Size = UDim2.new(0, 10000, 0, 10000)
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Position = UDim2.new(-4, 0, -5, 0)
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.BackgroundTransparency = 1
-				wait(.5)
-				game:GetService'VirtualUser':Button1Down(Vector2.new(99,99))
-				game:GetService'VirtualUser':Button1Up(Vector2.new(99,99))
-			end     
-		end
-	end)
+    spawn(function()
+        while wait() do
+            if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Visible == true then
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Size = UDim2.new(0, 10000, 0, 10000)
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Position = UDim2.new(-4, 0, -5, 0)
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.BackgroundTransparency = 1
+                wait(.5)
+                game:GetService'VirtualUser':Button1Down(Vector2.new(99,99))
+                game:GetService'VirtualUser':Button1Up(Vector2.new(99,99))
+            end     
+        end
+    end)
 end
 
 if _G.Marine then
-	spawn(function()
-		while wait() do
-			if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Visible == true then
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.Size = UDim2.new(0, 10000, 0, 10000)
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.Position = UDim2.new(-4, 0, -5, 0)
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.BackgroundTransparency = 1
-				wait(.5)
-				game:GetService'VirtualUser':Button1Down(Vector2.new(99,99))
-				game:GetService'VirtualUser':Button1Up(Vector2.new(99,99))
-			end
-		end
-	end)
+    spawn(function()
+        while wait() do
+            if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Visible == true then
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.Size = UDim2.new(0, 10000, 0, 10000)
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.Position = UDim2.new(-4, 0, -5, 0)
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.BackgroundTransparency = 1
+                wait(.5)
+                game:GetService'VirtualUser':Button1Down(Vector2.new(99,99))
+                game:GetService'VirtualUser':Button1Up(Vector2.new(99,99))
+            end
+        end
+    end)
 end
 
 if _G.Pirate then 
-	spawn(function()
-		while wait() do
-			if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Visible == true then
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Size = UDim2.new(0, 10000, 0, 10000)
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Position = UDim2.new(-4, 0, -5, 0)
-				game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.BackgroundTransparency = 1
-				wait(.5)
-				game:GetService'VirtualUser':Button1Down(Vector2.new(99,99))
-				game:GetService'VirtualUser':Button1Up(Vector2.new(99,99))
-			end
-		end
-	end)
+    spawn(function()
+        while wait() do
+            if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Visible == true then
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Size = UDim2.new(0, 10000, 0, 10000)
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Position = UDim2.new(-4, 0, -5, 0)
+                game:GetService("Players")["LocalPlayer"].PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.BackgroundTransparency = 1
+                wait(.5)
+                game:GetService'VirtualUser':Button1Down(Vector2.new(99,99))
+                game:GetService'VirtualUser':Button1Up(Vector2.new(99,99))
+            end
+        end
+    end)
 end
 
 if _G.FPSBoost then
-	spawn(function()
-		wait(3)
-		local decalsyeeted = true
-		local g = game
-		local w = g.Workspace
-		local l = g.Lighting
-		local t = w.Terrain
-		t.WaterWaveSize = 0
-		t.WaterWaveSpeed = 0
-		t.WaterReflectance = 0
-		t.WaterTransparency = 0
-		l.GlobalShadows = false
-		l.FogEnd = 9e9
-		l.Brightness = 0
-		settings().Rendering.QualityLevel = "Level01"
-		for i, v in pairs(g:GetDescendants()) do
-			if v:IsA("Part") or v:IsA("Union") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") then 
-				v.Material = "Plastic"
-				v.Reflectance = 0
-			elseif v:IsA("Decal") or v:IsA("Texture") and decalsyeeted then
-				v.Transparency = 1
-			elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-				v.Lifetime = NumberRange.new(0)
-			elseif v:IsA("Explosion") then
-				v.BlastPressure = 1
-				v.BlastRadius = 1
-			elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles") then
-				v.Enabled = false
-			elseif v:IsA("MeshPart") then
-				v.Material = "Plastic"
-				v.Reflectance = 0
-				v.TextureID = 10385902758728957
-			end
-		end
-		for i, e in pairs(l:GetChildren()) do
-			if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
-				e.Enabled = false
-			end
-		end
-	end)
+    spawn(function()
+        wait(3)
+        local decalsyeeted = true
+        local g = game
+        local w = g.Workspace
+        local l = g.Lighting
+        local t = w.Terrain
+        t.WaterWaveSize = 0
+        t.WaterWaveSpeed = 0
+        t.WaterReflectance = 0
+        t.WaterTransparency = 0
+        l.GlobalShadows = false
+        l.FogEnd = 9e9
+        l.Brightness = 0
+        settings().Rendering.QualityLevel = "Level01"
+        for i, v in pairs(g:GetDescendants()) do
+            if v:IsA("Part") or v:IsA("Union") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") then 
+                v.Material = "Plastic"
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") and decalsyeeted then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            elseif v:IsA("Explosion") then
+                v.BlastPressure = 1
+                v.BlastRadius = 1
+            elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                v.Enabled = false
+            elseif v:IsA("MeshPart") then
+                v.Material = "Plastic"
+                v.Reflectance = 0
+                v.TextureID = 10385902758728957
+            end
+        end
+        for i, e in pairs(l:GetChildren()) do
+            if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+                e.Enabled = false
+            end
+        end
+    end)
 end
 
 -- ==========================================
@@ -140,7 +137,7 @@ local States = {
     FruitFinder = false,
     AutoMoveFruit = false,
     AutoFarm = false,
-    Noclip = true
+    Noclip = false -- DÜZELTİLDİ: Artık otomatik açık gelmeyecek.
 }
 
 -- ==========================================
@@ -159,7 +156,7 @@ R.Stepped:Connect(function()
         elseif wasNoclip then
             wasNoclip = false
             for _, v in pairs(char:GetChildren()) do
-                if v:IsA("BasePart") and (v.Name == "HumanoidRootPart" or v.Name == "Torso" or v.Name == "UpperTorso" or v.Name == "LowerTorso" or v.Name == "Head") then
+                if v:IsA("BasePart") then
                     v.CanCollide = true
                 end
             end
@@ -209,30 +206,29 @@ task.spawn(function()
     end
 end)
 
--- FRUIT FINDER & AUTO-MOVE (RESİM + İSİM + FULL MAP TARAMASI EKLENDİ)
+-- FRUIT FINDER & AUTO-MOVE
 task.spawn(function()
-    while task.wait(1) do -- Optimizasyon için 1 saniyede bir tarar (GetDescendants büyük bir işlemdir)
+    while task.wait(1) do 
         local fruitCount, closestFruitPart, shortestDistance = 0, nil, math.huge
         local char = L.Character
         local H = char and char:FindFirstChild("HumanoidRootPart")
 
-        -- Sadece ana yüzeyi değil, haritadaki (yüklenmiş) tüm alt klasörleri ve ağaç altlarını tarar
         for _, o in pairs(W:GetDescendants()) do
             local nameLower = string.lower(o.Name)
             
-            if string.find(nameLower, "fruit") and (o:IsA("Tool") or o:IsA("Model")) then
+            -- DÜZELTİLDİ: 'not o:FindFirstChild("Humanoid")' eklendi ki NPC'leri (meyve satıcısı vs.) bulmasın
+            if string.find(nameLower, "fruit") and not o:FindFirstChild("Humanoid") and (o:IsA("Tool") or o:IsA("Model")) then
                 local targetPart = o:FindFirstChild("Handle") or o:FindFirstChildOfClass("MeshPart") or o:FindFirstChildOfClass("Part")
                 
                 if targetPart then
                     fruitCount = fruitCount + 1
                     
-                    -- İsmi Temizle ve Sadece Meyve Adını Bırak
                     local cleanName = o.Name
                     cleanName = string.gsub(cleanName, " Fruit", "")
                     cleanName = string.gsub(cleanName, "Fruit ", "")
                     cleanName = string.gsub(cleanName, "Fruit", "")
                     cleanName = string.gsub(cleanName, "Blox", "")
-                    cleanName = cleanName:match("^%s*(.-)%s*$") -- Baş ve sondaki boşlukları sil
+                    cleanName = cleanName:match("^%s*(.-)%s*$") 
                     
                     local isMysterious = false
                     if cleanName == "" then
@@ -240,40 +236,36 @@ task.spawn(function()
                         isMysterious = true
                     end
 
-                    -- Resmi Belirle
                     local iconImage = FruitImages["Default"]
                     if not isMysterious and FruitImages[cleanName] and FruitImages[cleanName] ~= "rbxassetid://0000000" then
                         iconImage = FruitImages[cleanName]
                     end
 
-                    -- ESP UI OLUŞTURMA
                     if States.FruitFinder then
                         local esp = o:FindFirstChild("ESP_GUI")
                         if not esp then
                             esp = Instance.new("BillboardGui", o)
                             esp.Name = "ESP_GUI"
-                            esp.Size = UDim2.new(0, 100, 0, 130) -- Hem resim hem yazı sığacak kadar uzun
+                            esp.Size = UDim2.new(0, 100, 0, 130)
                             esp.AlwaysOnTop = true
                             esp.Adornee = targetPart 
 
-                            -- Resim Çerçevesi
                             local icon = Instance.new("ImageLabel", esp)
                             icon.Name = "Icon"
                             icon.Size = UDim2.new(1, 0, 0, 100)
                             icon.BackgroundTransparency = 1
                             icon.Image = iconImage
 
-                            -- İsim Çerçevesi
                             local l = Instance.new("TextLabel", esp)
                             l.Name = "NameLabel"
-                            l.Size = UDim2.new(2, 0, 0, 30) -- Yazı taşmasın diye genişletildi
+                            l.Size = UDim2.new(2, 0, 0, 30) 
                             l.Position = UDim2.new(-0.5, 0, 0, 100)
                             l.BackgroundTransparency = 1
                             
                             if isMysterious then
-                                l.TextColor3 = Color3.fromRGB(255, 85, 0) -- Turuncu/Kırmızımsı
+                                l.TextColor3 = Color3.fromRGB(255, 85, 0) 
                             else
-                                l.TextColor3 = Color3.fromRGB(85, 255, 127) -- Parlak Yeşil
+                                l.TextColor3 = Color3.fromRGB(85, 255, 127) 
                             end
                             l.TextStrokeTransparency = 0 
                             l.Font = Enum.Font.GothamBlack
@@ -288,7 +280,6 @@ task.spawn(function()
                                 lbl.Text = string.format("%s\n[%.0f m]", cleanName, dist)
                                 lbl.TextSize = math.clamp(150 / (dist / 10), 12, 22)
                             end
-                            -- Dinamik Resim Güncellemesi (Eğer sonradan listede değişiklik yapıldıysa)
                             if iconUI and iconUI.Image == "" or iconUI.Image == "rbxassetid://0000000" then
                                 iconUI.Image = iconImage
                             end
@@ -310,7 +301,8 @@ task.spawn(function()
         _G.UpdateFruitCount = fruitCount
         
         if States.AutoMoveFruit and closestFruitPart and H then
-            T:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame}):Play()
+            local tweenTime = shortestDistance / 300 -- Hız limiti kontrolü
+            T:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame}):Play()
         end
     end
 end)
@@ -343,7 +335,6 @@ Scroll.BackgroundTransparency = 1; Scroll.ScrollBarThickness = 6; Scroll.ScrollB
 local UIList = Instance.new("UIListLayout", Scroll)
 UIList.Padding = UDim.new(0, 8); UIList.SortOrder = Enum.SortOrder.LayoutOrder
 
--- UI Fonksiyonları
 local function CreateCategory(name)
     local lbl = Instance.new("TextLabel", Scroll)
     lbl.Size = UDim2.new(1, 0, 0, 30); lbl.BackgroundTransparency = 1
@@ -400,8 +391,6 @@ local function CreateButton(name, btnText, callback)
     btn.MouseButton1Click:Connect(callback)
 end
 
--- /// KATEGORİLER VE İÇERİKLER \\\ --
-
 CreateCategory("LOCAL ADMIN & SYSTEM")
 CreateButton("🖥️ Open F9 Developer Console", "FORCE OPEN", function()
     pcall(function() game:GetService("StarterGui"):SetCore("DevConsoleVisible", true) end)
@@ -434,7 +423,12 @@ if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations
             CreateButton("🏝️ " .. island.Name, "TELEPORT", function()
                 local hrp = L.Character and L.Character:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    T:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = island.CFrame + Vector3.new(0, 50, 0)}):Play()
+                    -- DÜZELTİLDİ: Hedef konuma giderken mesafeye dayalı dinamik süre hesaplaması (Anti-cheat bypass)
+                    local targetPos = island.CFrame + Vector3.new(0, 50, 0)
+                    local dist = (hrp.Position - targetPos.Position).Magnitude
+                    local tweenTime = math.clamp(dist / 300, 0.5, 45) -- 300 hız limiti, minimum 0.5s
+                    
+                    T:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = targetPos}):Play()
                 end
             end)
         end
@@ -472,7 +466,6 @@ CreateButton("🔄 Give Stamina", "REFRESH STAMINA", function()
     if L.Character and L.Character:FindFirstChild("Energy") then L.Character.Energy.Value = L.Character.Energy.MaxValue end
 end)
 
--- Alt Bar
 local BottomBar = Instance.new("Frame", MainFrame)
 BottomBar.Size = UDim2.new(1, 0, 0, 50); BottomBar.Position = UDim2.new(0, 0, 1, -50)
 BottomBar.BackgroundColor3 = Color3.fromRGB(10, 0, 0)
