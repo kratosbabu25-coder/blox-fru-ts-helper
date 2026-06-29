@@ -1,9 +1,8 @@
--- // GÜNDOĞDİSEX V2.3 - MASSIVE ULTIMATE EDITION (IMAGE ESP & FULL MAP SCAN & AUTO CHEST) \\
+-- // GÜNDOĞDİSEX V2.4 - MASSIVE ULTIMATE EDITION (IMAGE ESP & HIGH-SPEED AUTO CHEST) \\
 
 -- ==========================================
 -- 0. MEYVE RESİM AYARLARI (TÜM MEYVELER EKLENDİ)
 -- ==========================================
--- İpucu: Kendi bulduğun resim ID'lerini "rbxassetid://123456789" formatında girebilirsin.
 local FruitImages = {
     ["Kitsune"]  = "rbxassetid://0000000",
     ["Leopard"]  = "rbxassetid://0000000",
@@ -159,7 +158,7 @@ local States = {
     FruitFinder = false,
     AutoMoveFruit = false,
     AutoFarm = false,
-    AutoChest = false, -- YENİ: Otomatik Sandık
+    AutoChest = false, 
     Noclip = false 
 }
 
@@ -171,7 +170,7 @@ local wasNoclip = false
 R.Stepped:Connect(function()
     local char = L.Character
     if char then
-        if States.Noclip then
+        if States.Noclip or States.AutoChest then
             wasNoclip = true
             for _, v in pairs(char:GetChildren()) do 
                 if v:IsA("BasePart") then v.CanCollide = false end 
@@ -179,9 +178,7 @@ R.Stepped:Connect(function()
         elseif wasNoclip then
             wasNoclip = false
             for _, v in pairs(char:GetChildren()) do
-                if v:IsA("BasePart") then
-                    v.CanCollide = true
-                end
+                if v:IsA("BasePart") then v.CanCollide = true end
             end
         end
 
@@ -229,44 +226,86 @@ task.spawn(function()
     end
 end)
 
--- YENİ: OTOMATİK SANDIK TOPLAMA (AUTO CHEST FARM)
+-- ==========================================
+-- Gelişmiş Kesintisiz Otomatik Sandık Motoru (Mermi Modu)
+-- ==========================================
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         if States.AutoChest then
-            local char = L.Character
-            local H = char and char:FindFirstChild("HumanoidRootPart")
-            if H then
+            pcall(function()
+                local char = L.Character
+                local H = char and char:FindFirstChild("HumanoidRootPart")
+                if not H then return end
+
                 local closestChest = nil
                 local shortest = math.huge
-                
-                -- Haritadaki tüm sandıkları tara ve en yakın olanı seç
-                for _, v in pairs(W:GetDescendants()) do
-                    if v:IsA("BasePart") and string.find(v.Name, "Chest") then
-                        -- Eğer sandık saydam değilse (yani henüz alınmamışsa)
-                        if v.Transparency < 1 then
-                            local dist = (H.Position - v.Position).Magnitude
-                            if dist < shortest then
-                                shortest = dist
-                                closestChest = v
+
+                -- 1. ADIM: Hızlı Katman Taraması (Sıfır Lag)
+                for _, v in pairs(W:GetChildren()) do
+                    if string.find(v.Name, "Chest") and v:IsA("BasePart") then
+                        local dist = (H.Position - v.Position).Magnitude
+                        if dist < shortest then shortest = dist; closestChest = v end
+                    end
+                end
+
+                if not closestChest then
+                    for _, folder in pairs(W:GetChildren()) do
+                        if folder:IsA("Folder") or folder:IsA("Model") then
+                            for _, v in pairs(folder:GetChildren()) do
+                                if string.find(v.Name, "Chest") and v:IsA("BasePart") then
+                                    local dist = (H.Position - v.Position).Magnitude
+                                    if dist < shortest then shortest = dist; closestChest = v end
+                                end
                             end
                         end
                     end
                 end
 
-                -- En yakın sandık bulunduysa oraya uç
-                if closestChest and States.AutoChest then
-                    local tweenTime = shortest / 300 -- Anti-cheat bypass hız ayarı
-                    local tween = T:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestChest.CFrame})
-                    tween:Play()
-                    
-                    -- Karakter sandığa ulaşana VEYA sandık toplanıp saydamlaşana kadar bekle
-                    repeat 
-                        task.wait(0.1) 
-                    until not States.AutoChest or not closestChest or not closestChest.Parent or closestChest.Transparency == 1 or (H.Position - closestChest.Position).Magnitude < 5
-                    
-                    if tween then tween:Cancel() end
+                -- 2. ADIM: Eğer bulunamadıysa Derin Tarama (Arka Planda Güvenli Arama)
+                if not closestChest then
+                    for _, v in pairs(W:GetDescendants()) do
+                        if string.find(v.Name, "Chest") and v:IsA("BasePart") then
+                            local dist = (H.Position - v.Position).Magnitude
+                            if dist < shortest then shortest = dist; closestChest = v end
+                        end
+                    end
                 end
-            end
+
+                -- 3. ADIM: Sandığa Kilitlenme ve Frame-by-Frame Doğrusal Uçuş
+                if closestChest then
+                    local ChestSpeed = 4.5 -- Anti-Cheat korumalı maksimum güvenli adım hızı
+                    
+                    while States.AutoChest and closestChest and closestChest.Parent and (H.Position - closestChest.Position).Magnitude > 1.5 do
+                        if not L.Character or not L.Character:FindFirstChild("HumanoidRootPart") then break end
+                        H = L.Character.HumanoidRootPart
+
+                        -- Anlık mesafe vektörü hesaplama ve CFrame enjeksiyonu
+                        local direction = (closestChest.Position - H.Position).Unit
+                        local nextPosition = H.Position + (direction * math.min(ChestSpeed, (closestChest.Position - H.Position).Magnitude))
+                        
+                        H.CFrame = CFrame.new(nextPosition, closestChest.Position)
+                        H.Velocity = Vector3.new(0,0,0) -- Yerçekimi ve savrulmayı engeller
+
+                        -- Exploit API Tetikleyici (firetouchinterest varsa sandığı anında cebe indirir)
+                        if firetouchinterest then
+                            firetouchinterest(H, closestChest, 0)
+                            firetouchinterest(H, closestChest, 1)
+                        end
+                        
+                        R.Heartbeat:Wait()
+                    end
+                    
+                    -- Alındığından emin olmak için son tetikleme
+                    if firetouchinterest and closestChest then
+                        firetouchinterest(H, closestChest, 0)
+                        firetouchinterest(H, closestChest, 1)
+                    end
+                    task.wait(0.02)
+                else
+                    -- Haritada hiç sandık kalmadıysa lag önlemek için kısa süreli döngü dinlendirme
+                    task.wait(1)
+                end
+            end)
         end
     end
 end)
@@ -282,8 +321,6 @@ task.spawn(function()
             local nameLower = string.lower(o.Name)
             
             if string.find(nameLower, "fruit") and (o:IsA("Tool") or o:IsA("Model")) then
-                
-                -- NPC ve Satıcıları reddet
                 if string.find(nameLower, "dealer") or string.find(nameLower, "gacha") then continue end
                 
                 local parent = o.Parent
@@ -297,7 +334,6 @@ task.spawn(function()
                 
                 if targetPart then
                     fruitCount = fruitCount + 1
-                    
                     local cleanName = o.Name
                     local isMysterious = false
                     
@@ -389,7 +425,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. KAPSAMLI ARAYÜZ (GÜNDOĞDİSEX V2.3 UI)
+-- 4. KAPSAMLI ARAYÜZ (GÜNDOĞDİSEX V2.4 UI)
 -- ==========================================
 if C:FindFirstChild("GDX_V2") then C.GDX_V2:Destroy() end
 
@@ -406,7 +442,7 @@ MainFrame.Active = true; MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 50); Title.BackgroundTransparency = 1
-Title.Text = "GÜNDOĞDİSEX V2.3 👑"
+Title.Text = "GÜNDOĞDİSEX V2.4 👑"
 Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 28
 
 local Scroll = Instance.new("ScrollingFrame", MainFrame)
@@ -495,7 +531,7 @@ CreateToggle("✔ Infinite Stamina", "InfStamina", "ACTIVE (Prevents drain)")
 CreateToggle("🦅 Fly Mode", "Fly", "Vertical [W/S] Horizontal [Mouse]")
 CreateToggle("👻 No Clip (Duvar Geçişi)", "Noclip", "RunService Stepped Bypassed")
 CreateToggle("⚔️ Auto Farm (Safe Hover)", "AutoFarm", "10 Studs Up + 1st Slot Force")
-CreateToggle("💰 Auto Chest Farm", "AutoChest", "Teleports to nearest chests instantly!") -- YENİ SANDIK BUTONU BURADA
+CreateToggle("💰 Ultra Auto Chest Farm", "AutoChest", "High-speed linear vector calculation!") -- GÜNCEL UTILITY BUTTON
 
 CreateCategory("TELEPORT LOCATIONS")
 if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations") then
@@ -508,7 +544,6 @@ if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations
                     local targetPos = island.CFrame + Vector3.new(0, 300, 0)
                     local dist = (hrp.Position - targetPos.Position).Magnitude
                     local tweenTime = math.clamp(dist / 300, 0.5, 45) 
-                    
                     T:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = targetPos}):Play()
                 end
             end)
