@@ -1,28 +1,50 @@
--- // GÜNDOĞDİSEX V2.1 - MASSIVE ULTIMATE EDITION (IMAGE ESP & FULL MAP SCAN) \\
+-- // GÜNDOĞDİSEX V2.3 - MASSIVE ULTIMATE EDITION (IMAGE ESP & FULL MAP SCAN & AUTO CHEST) \\
 
 -- ==========================================
--- 0. MEYVE RESİM AYARLARI (BURAYI KENDİNE GÖRE DOLDUR)
+-- 0. MEYVE RESİM AYARLARI (TÜM MEYVELER EKLENDİ)
 -- ==========================================
+-- İpucu: Kendi bulduğun resim ID'lerini "rbxassetid://123456789" formatında girebilirsin.
 local FruitImages = {
-    ["Kitsune"] = "rbxassetid://0000000",
-    ["T-Rex"]   = "rbxassetid://0000000",
-    ["Leopard"] = "rbxassetid://0000000",
-    ["Dough"]   = "rbxassetid://0000000",
-    ["Dragon"]  = "rbxassetid://0000000",
-    ["Rumble"]  = "rbxassetid://0000000",
-    ["Quake"]   = "rbxassetid://0000000",
-    ["Buddha"]  = "rbxassetid://0000000",
-    ["Portal"]  = "rbxassetid://0000000",
-    ["Magma"]   = "rbxassetid://0000000",
-    ["Light"]   = "rbxassetid://0000000",
-    ["Ice"]     = "rbxassetid://0000000",
-    ["Dark"]    = "rbxassetid://0000000",
-    ["Flame"]   = "rbxassetid://0000000",
-    ["Sand"]    = "rbxassetid://0000000",
-    ["Rocket"]  = "rbxassetid://0000000",
-    ["Spin"]    = "rbxassetid://0000000",
-    ["Chop"]    = "rbxassetid://0000000",
-    ["Default"] = "rbxassetid://0000000" 
+    ["Kitsune"]  = "rbxassetid://0000000",
+    ["Leopard"]  = "rbxassetid://0000000",
+    ["Dragon"]   = "rbxassetid://0000000",
+    ["T-Rex"]    = "rbxassetid://0000000",
+    ["Dough"]    = "rbxassetid://0000000",
+    ["Mammoth"]  = "rbxassetid://0000000",
+    ["Spirit"]   = "rbxassetid://0000000",
+    ["Venom"]    = "rbxassetid://0000000",
+    ["Control"]  = "rbxassetid://0000000",
+    ["Shadow"]   = "rbxassetid://0000000",
+    ["Gravity"]  = "rbxassetid://0000000",
+    ["Blizzard"] = "rbxassetid://0000000",
+    ["Pain"]     = "rbxassetid://0000000",
+    ["Rumble"]   = "rbxassetid://0000000",
+    ["Portal"]   = "rbxassetid://0000000",
+    ["Phoenix"]  = "rbxassetid://0000000",
+    ["Sound"]    = "rbxassetid://0000000",
+    ["Spider"]   = "rbxassetid://0000000",
+    ["Love"]     = "rbxassetid://0000000",
+    ["Buddha"]   = "rbxassetid://0000000",
+    ["Quake"]    = "rbxassetid://0000000",
+    ["Magma"]    = "rbxassetid://0000000",
+    ["Ghost"]    = "rbxassetid://0000000",
+    ["Barrier"]  = "rbxassetid://0000000",
+    ["Rubber"]   = "rbxassetid://0000000",
+    ["Light"]    = "rbxassetid://0000000",
+    ["Diamond"]  = "rbxassetid://0000000",
+    ["Dark"]     = "rbxassetid://0000000",
+    ["Sand"]     = "rbxassetid://0000000",
+    ["Ice"]      = "rbxassetid://0000000",
+    ["Falcon"]   = "rbxassetid://0000000",
+    ["Flame"]    = "rbxassetid://0000000",
+    ["Spike"]    = "rbxassetid://0000000",
+    ["Smoke"]    = "rbxassetid://0000000",
+    ["Bomb"]     = "rbxassetid://0000000",
+    ["Spring"]   = "rbxassetid://0000000",
+    ["Chop"]     = "rbxassetid://0000000",
+    ["Spin"]     = "rbxassetid://0000000",
+    ["Rocket"]   = "rbxassetid://0000000",
+    ["Default"]  = "rbxassetid://0000000" 
 }
 
 -- ==========================================
@@ -137,7 +159,8 @@ local States = {
     FruitFinder = false,
     AutoMoveFruit = false,
     AutoFarm = false,
-    Noclip = false -- DÜZELTİLDİ: Artık otomatik açık gelmeyecek.
+    AutoChest = false, -- YENİ: Otomatik Sandık
+    Noclip = false 
 }
 
 -- ==========================================
@@ -206,7 +229,49 @@ task.spawn(function()
     end
 end)
 
--- FRUIT FINDER & AUTO-MOVE
+-- YENİ: OTOMATİK SANDIK TOPLAMA (AUTO CHEST FARM)
+task.spawn(function()
+    while task.wait(0.5) do
+        if States.AutoChest then
+            local char = L.Character
+            local H = char and char:FindFirstChild("HumanoidRootPart")
+            if H then
+                local closestChest = nil
+                local shortest = math.huge
+                
+                -- Haritadaki tüm sandıkları tara ve en yakın olanı seç
+                for _, v in pairs(W:GetDescendants()) do
+                    if v:IsA("BasePart") and string.find(v.Name, "Chest") then
+                        -- Eğer sandık saydam değilse (yani henüz alınmamışsa)
+                        if v.Transparency < 1 then
+                            local dist = (H.Position - v.Position).Magnitude
+                            if dist < shortest then
+                                shortest = dist
+                                closestChest = v
+                            end
+                        end
+                    end
+                end
+
+                -- En yakın sandık bulunduysa oraya uç
+                if closestChest and States.AutoChest then
+                    local tweenTime = shortest / 300 -- Anti-cheat bypass hız ayarı
+                    local tween = T:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestChest.CFrame})
+                    tween:Play()
+                    
+                    -- Karakter sandığa ulaşana VEYA sandık toplanıp saydamlaşana kadar bekle
+                    repeat 
+                        task.wait(0.1) 
+                    until not States.AutoChest or not closestChest or not closestChest.Parent or closestChest.Transparency == 1 or (H.Position - closestChest.Position).Magnitude < 5
+                    
+                    if tween then tween:Cancel() end
+                end
+            end
+        end
+    end
+end)
+
+-- FRUIT FINDER & AUTO-MOVE 
 task.spawn(function()
     while task.wait(1) do 
         local fruitCount, closestFruitPart, shortestDistance = 0, nil, math.huge
@@ -216,24 +281,35 @@ task.spawn(function()
         for _, o in pairs(W:GetDescendants()) do
             local nameLower = string.lower(o.Name)
             
-            -- DÜZELTİLDİ: 'not o:FindFirstChild("Humanoid")' eklendi ki NPC'leri (meyve satıcısı vs.) bulmasın
-            if string.find(nameLower, "fruit") and not o:FindFirstChild("Humanoid") and (o:IsA("Tool") or o:IsA("Model")) then
+            if string.find(nameLower, "fruit") and (o:IsA("Tool") or o:IsA("Model")) then
+                
+                -- NPC ve Satıcıları reddet
+                if string.find(nameLower, "dealer") or string.find(nameLower, "gacha") then continue end
+                
+                local parent = o.Parent
+                if parent then
+                    if parent:FindFirstChild("Humanoid") then continue end
+                    if string.find(string.lower(parent.Name), "npc") then continue end
+                    if string.find(string.lower(parent.Name), "dealer") or string.find(string.lower(parent.Name), "gacha") then continue end
+                end
+
                 local targetPart = o:FindFirstChild("Handle") or o:FindFirstChildOfClass("MeshPart") or o:FindFirstChildOfClass("Part")
                 
                 if targetPart then
                     fruitCount = fruitCount + 1
                     
                     local cleanName = o.Name
-                    cleanName = string.gsub(cleanName, " Fruit", "")
-                    cleanName = string.gsub(cleanName, "Fruit ", "")
-                    cleanName = string.gsub(cleanName, "Fruit", "")
-                    cleanName = string.gsub(cleanName, "Blox", "")
-                    cleanName = cleanName:match("^%s*(.-)%s*$") 
-                    
                     local isMysterious = false
-                    if cleanName == "" then
+                    
+                    if o:IsA("Model") then
                         cleanName = "❓ GİZEMLİ MEYVE ❓"
                         isMysterious = true
+                    elseif o:IsA("Tool") then
+                        cleanName = string.gsub(cleanName, " Fruit", "")
+                        cleanName = string.gsub(cleanName, "Fruit ", "")
+                        cleanName = string.gsub(cleanName, "Fruit", "")
+                        cleanName = string.gsub(cleanName, "Blox", "")
+                        cleanName = cleanName:match("^%s*(.-)%s*$") 
                     end
 
                     local iconImage = FruitImages["Default"]
@@ -301,14 +377,19 @@ task.spawn(function()
         _G.UpdateFruitCount = fruitCount
         
         if States.AutoMoveFruit and closestFruitPart and H then
-            local tweenTime = shortestDistance / 300 -- Hız limiti kontrolü
-            T:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame}):Play()
+            if closestFruitPart:IsDescendantOf(W) and not closestFruitPart.Parent:FindFirstChild("Humanoid") then
+                local tweenTime = shortestDistance / 300 
+                local targetCFrame = closestFruitPart.CFrame * CFrame.new(0, 3, 0) 
+                T:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = targetCFrame}):Play()
+            else
+                closestFruitPart = nil 
+            end
         end
     end
 end)
 
 -- ==========================================
--- 4. KAPSAMLI ARAYÜZ (GÜNDOĞDİSEX V2.1 UI)
+-- 4. KAPSAMLI ARAYÜZ (GÜNDOĞDİSEX V2.3 UI)
 -- ==========================================
 if C:FindFirstChild("GDX_V2") then C.GDX_V2:Destroy() end
 
@@ -325,7 +406,7 @@ MainFrame.Active = true; MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 50); Title.BackgroundTransparency = 1
-Title.Text = "Hile kullanma oçun oğlinin oğli V2.1 👑"
+Title.Text = "GÜNDOĞDİSEX V2.3 👑"
 Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 28
 
 local Scroll = Instance.new("ScrollingFrame", MainFrame)
@@ -414,6 +495,7 @@ CreateToggle("✔ Infinite Stamina", "InfStamina", "ACTIVE (Prevents drain)")
 CreateToggle("🦅 Fly Mode", "Fly", "Vertical [W/S] Horizontal [Mouse]")
 CreateToggle("👻 No Clip (Duvar Geçişi)", "Noclip", "RunService Stepped Bypassed")
 CreateToggle("⚔️ Auto Farm (Safe Hover)", "AutoFarm", "10 Studs Up + 1st Slot Force")
+CreateToggle("💰 Auto Chest Farm", "AutoChest", "Teleports to nearest chests instantly!") -- YENİ SANDIK BUTONU BURADA
 
 CreateCategory("TELEPORT LOCATIONS")
 if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations") then
@@ -423,10 +505,9 @@ if W:FindFirstChild("_WorldOrigin") and W._WorldOrigin:FindFirstChild("Locations
             CreateButton("🏝️ " .. island.Name, "TELEPORT", function()
                 local hrp = L.Character and L.Character:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    -- DÜZELTİLDİ: Hedef konuma giderken mesafeye dayalı dinamik süre hesaplaması (Anti-cheat bypass)
-                    local targetPos = island.CFrame + Vector3.new(0, 50, 0)
+                    local targetPos = island.CFrame + Vector3.new(0, 300, 0)
                     local dist = (hrp.Position - targetPos.Position).Magnitude
-                    local tweenTime = math.clamp(dist / 300, 0.5, 45) -- 300 hız limiti, minimum 0.5s
+                    local tweenTime = math.clamp(dist / 300, 0.5, 45) 
                     
                     T:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = targetPos}):Play()
                 end
@@ -448,7 +529,7 @@ task.spawn(function()
         end
     end
 end)
-CreateToggle("⭐ Auto-Move to Fruit", "AutoMoveFruit", "Tweens to nearest fruit")
+CreateToggle("⭐ Auto-Move to Fruit", "AutoMoveFruit", "Disable Chest Farm while using this!")
 CreateButton("🎁 Give/Spawn Random Fruit", "🍒 ROLL FRUIT", function()
     pcall(function() Rep.Remotes.CommF_:InvokeServer("Cousin", "Buy") end)
 end)
