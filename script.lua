@@ -1,9 +1,8 @@
-Lua
--- // GÜNDOĞDİSEX V3.0 - MASSIVE PRO ULTIMATE EDITION \\
--- [YENİ] Çakışma Önleyici (Anti-Conflict), Gelişmiş Oto Farm, Oto Görev, Oto Balık ve Kesintisiz Sandık Botu!
+-- // GÜNDOĞDİSEX V3.0 - ULTIMATE APEX EDITION (STABLE & CONFLICT-FREE) \\
+-- Bütün çakışmalar giderildi, Mutex öncelik motoru ve Akıllı Görev/Balık sistemleri eklendi.
 
 -- ==========================================
--- 0. MEYVE EMOLARI VE TANIMLAMALAR
+-- 0. GÖRSEL İKONS VE VERİ TABANLARI
 -- ==========================================
 local FruitIcons = {
     ["Kitsune"]  = "🦊 Kitsune", ["Leopard"]  = "🐆 Leopard", ["Dragon"]   = "🐉 Dragon",
@@ -22,8 +21,21 @@ local FruitIcons = {
     ["Default"]  = "🍎 Meyve" 
 }
 
+-- Seviyeye Göre Otomatik Görev Veritabanı (Örneklenmiş Tam Yörünge)
+local QuestDatabase = {
+    {Level = 1, QuestName = "BanditQuest1", LevelReq = 1, MobName = "Bandit", QuestNPC = "Bandit Quest Giver"},
+    {Level = 15, QuestName = "JungleQuest", LevelReq = 1, MobName = "Monkey", QuestNPC = "Adventurer"},
+    {Level = 30, QuestName = "JungleQuest", LevelReq = 2, MobName = "Gorilla", QuestNPC = "Adventurer"},
+    {Level = 60, QuestName = "DesertQuest", LevelReq = 1, MobName = "Desert Bandit", QuestNPC = "Desert Adventurer"},
+    {Level = 90, QuestName = "SnowQuest", LevelReq = 1, MobName = "Snow Bandit", QuestNPC = "Villager"},
+    {Level = 120, QuestName = "MarineQuest2", LevelReq = 1, MobName = "Chief Petty Officer", QuestNPC = "Marine Notice"},
+    {Level = 150, QuestName = "SkyQuest", LevelReq = 1, MobName = "Sky Bandit", QuestNPC = "Mad Scientist"},
+    {Level = 700, QuestName = "Area2Quest", LevelReq = 1, MobName = "Raider", QuestNPC = "Quest Giver"},
+    {Level = 1500, QuestName = "Sea3Quest", LevelReq = 1, MobName = "Pirate Millionaire", QuestNPC = "King Red Head"}
+}
+
 -- ==========================================
--- 1. SERVİSLER VE GLOBAL DEĞİŞKENLER
+-- 1. SERVİSLER, DEĞİŞKENLER VE MUTEX KİLİDİ
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -39,56 +51,47 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 local States = {
-    SpeedHack = false,
-    SpeedValue = 75,
-    InfStamina = true,
-    Fly = false,
-    Noclip = false,
-    FruitFinder = false,
-    AutoMoveFruit = false,
-    AutoFarm = false,
-    AutoQuest = false,
-    FastAttack = true,
-    SafeDistance = 15, -- Hasar almamak için düşmanın tepesinde durma mesafesi
-    AutoChest = false,
-    AutoFish = false,
-    AutoFishQuest = false
+    SpeedHack = false, SpeedValue = 75,
+    InfStamina = false, Fly = false, Noclip = false,
+    FruitFinder = false, AutoMoveFruit = false,
+    AutoFarm = false, AutoQuest = false, MobAura = false, FastAttack = false,
+    AutoChest = false, AutoFish = false, AutoFishQuest = false
 }
+
+-- ÇAKIŞMA ÖNLEYİCİ MUTEX (Aynı anda sadece en öncelikli sistem çalışır)
+local ActiveTask = "NONE" -- ÖNCELİK S SIRASI: 1. AutoQuest/Farm, 2. AutoFish, 3. AutoMoveFruit, 4. AutoChest
 
 local _UpdateFruitCount = 0
 local CachedChests = {}
 local CachedFruits = {}
-local ChestBlacklist = {}
-local ActiveTween = nil
+local SafePlatform = nil
 
--- [Kritik] Çakışma Önleyici (Anti-Conflict Mechanism)
-local function ResolveConflicts(activeMode)
-    if activeMode == "AutoChest" and States.AutoChest then
-        States.AutoFarm = false
-        States.AutoMoveFruit = false
-        States.AutoFish = false
-    elseif activeMode == "AutoFarm" and States.AutoFarm then
-        States.AutoChest = false
-        States.AutoMoveFruit = false
-        States.AutoFish = false
-    elseif activeMode == "AutoMoveFruit" and States.AutoMoveFruit then
-        States.AutoChest = false
-        States.AutoFarm = false
-        States.AutoFish = false
-    elseif activeMode == "AutoFish" and States.AutoFish then
-        States.AutoChest = false
-        States.AutoFarm = false
-        States.AutoMoveFruit = false
+-- Güvenli Uçan Platform (Sıfır Hasar İçin Karakterin Altına Yapışır)
+local function CreateSafePlatform()
+    if not SafePlatform then
+        SafePlatform = Instance.new("Part", Workspace)
+        SafePlatform.Name = "GDX_SafePlatform"
+        SafePlatform.Size = Vector3.new(10, 1, 10)
+        SafePlatform.Anchored = true
+        SafePlatform.CanCollide = true
+        SafePlatform.Transparency = 1
     end
-    if ActiveTween then ActiveTween:Cancel() end
 end
 
 -- ==========================================
--- 2. TEAM SELECT & AUTO-DISCONNECT LOOP
+-- 2. TEAM SELECT & ANTI-AFK ENGINE
 -- ==========================================
 task.spawn(function()
-    local chooseTeamGui = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Main"):WaitForChild("ChooseTeam", 5)
-    while chooseTeamGui and chooseTeamGui.Visible == true do
+    while true do
+        task.wait(60)
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
+
+task.spawn(function()
+    local chooseTeamGui = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Main"):WaitForChild("ChooseTeam")
+    while chooseTeamGui.Visible == true do
         task.wait(0.5)
         pcall(function()
             local teamButton = _G.Marine and chooseTeamGui.Container.Marines.Frame.ViewportFrame.TextButton or chooseTeamGui.Container.Pirates.Frame.ViewportFrame.TextButton
@@ -105,51 +108,21 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 3. HIGH-PERFORMANCE FPS BOOST
--- ==========================================
-if _G.FPSBoost then
-    task.spawn(function()
-        task.wait(1)
-        Workspace.Terrain.WaterWaveSize = 0
-        Workspace.Terrain.WaterWaveSpeed = 0
-        Workspace.Terrain.WaterReflectance = 0
-        Workspace.Terrain.WaterTransparency = 0
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
-        Lighting.Brightness = 0
-        settings().Rendering.QualityLevel = "Level01"
-        
-        for _, v in Workspace:GetDescendants() do
-            if v:IsA("Part") or v:IsA("Union") or v:IsA("MeshPart") then 
-                v.Material = Enum.Material.Plastic
-                v.Reflectance = 0
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                v.Transparency = 1
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v.Lifetime = NumberRange.new(0)
-            end
-        end
-    end)
-end
-
--- ==========================================
--- 4. ARKA PLAN ÖNBELLEKLEME MOTORU (GELİŞMİŞ)
+-- 3. AKILLI ÖNBELLEKLEME (CACHE) MOTORU
 -- ==========================================
 task.spawn(function()
     while true do
         if States.AutoChest or States.FruitFinder or States.AutoMoveFruit then
-            local tempChests = {}
-            local tempFruits = {}
-            
+            local tempChests, tempFruits = {}, {}
             for _, v in Workspace:GetDescendants() do
                 if States.AutoChest and v:IsA("BasePart") and string.find(v.Name, "Chest") then
-                    if v.Parent and not v.Parent:FindFirstChild("Humanoid") and not ChestBlacklist[v] then
+                    if v.Parent and not v.Parent:FindFirstChild("Humanoid") and not v:IsDescendantOf(LocalPlayer.Character) then
                         table.insert(tempChests, v)
                     end
                 elseif (States.FruitFinder or States.AutoMoveFruit) and (v:IsA("Tool") or v:IsA("Model")) and string.find(string.lower(v.Name), "fruit") then
                     local nameLower = string.lower(v.Name)
                     if not string.find(nameLower, "dealer") and not string.find(nameLower, "gacha") then
-                        if v.Parent and not v.Parent:FindFirstChild("Humanoid") then
+                        if v.Parent and not v.Parent:FindFirstChild("Humanoid") and not string.find(string.lower(v.Parent.Name), "npc") then
                             table.insert(tempFruits, v)
                         end
                     end
@@ -163,14 +136,13 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5. HİLE MOTORLARI & FİZİK KONTROLLERİ
+-- 4. HİLE VE FİZİK MOTORLARI (SPEED, NOCLIP, FLY)
 -- ==========================================
 local wasNoclip = false
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if char then
-        -- Noclip ve Oto-Farm esnasında duvarlara takılmayı engelle
-        if States.Noclip or States.AutoChest or States.AutoFarm or States.AutoMoveFruit then
+        if States.Noclip or States.AutoChest or States.AutoFarm or States.AutoQuest then
             wasNoclip = true
             for _, v in char:GetChildren() do 
                 if v:IsA("BasePart") then v.CanCollide = false end 
@@ -191,429 +163,342 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-RunService.Heartbeat:Connect(function()
-    if States.Fly and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local H = LocalPlayer.Character.HumanoidRootPart
-        local D = Vector3.new()
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then D += Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then D -= Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then D -= Camera.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then D += Camera.CFrame.RightVector end
-        H.CFrame += D * (States.SpeedValue / 20)
-        H.Velocity = Vector3.new()
-    end
-end)
+-- ==========================================
+-- 5. AKILLI GÖREV & YÜKSEK HASARLI OTO-FARM
+-- ==========================================
+local function GetCurrentLevel()
+    pcall(function() return LocalPlayer.Data.Level.Value end)
+    return LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") and LocalPlayer.Data.Level.Value or 1
+end
 
--- ==========================================
--- 6. ULTRA FAST ATTACK MOTORU (YÜKSEK HASAR SİMÜLASYONU)
--- ==========================================
+local function GetBestQuest()
+    local myLevel = GetCurrentLevel()
+    local bestQuest = QuestDatabase[1]
+    for _, q in ipairs(QuestDatabase) do
+        if myLevel >= q.Level then bestQuest = q end
+    end
+    return bestQuest
+end
+
+-- Fast Attack & Mob Aura (Düşmanları Topla ve Seri Vur)
 task.spawn(function()
     while true do
         task.wait(0.05)
-        if States.AutoFarm and States.FastAttack then
-            pcall(function()
-                local char = LocalPlayer.Character
-                local tool = char and char:FindFirstChildOfClass("Tool")
-                if tool then
-                    tool:Activate()
-                    VirtualUser:CaptureController()
-                    VirtualUser:Button1Down(Vector2.new(600, 600))
-                    VirtualUser:Button1Up(Vector2.new(600, 600))
-                    -- Blox Fruits özel saldırı tetikleyicileri
-                    if ReplicatedStorage:FindFirstChild("RigControllerEvent") then
-                        ReplicatedStorage.RigControllerEvent:FireServer("weaponChange", tostring(tool.Name))
-                        ReplicatedStorage.RigControllerEvent:FireServer("hit", {}, 2, "")
-                    end
-                end
-            end)
-        end
-    end)
-end)
-
--- ==========================================
--- 7. OTO GÖREV & AKILLI OTO FARM (SAFE HOVER)
--- ==========================================
-local function GetCurrentQuest()
-    local lvl = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") and LocalPlayer.Data.Level.Value or 1
-    -- Temel seviye görev algırma logic'i (Blox Fruits standart remotelarını tetikler)
-    if States.AutoQuest and not (LocalPlayer.PlayerGui.Main.Quest.Visible) then
-        pcall(function()
-            local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-            if CommF then
-                if lvl <= 10 then
-                    CommF:InvokeServer("StartQuest", "BanditQuest1", 1)
-                elseif lvl <= 30 then
-                    CommF:InvokeServer("StartQuest", "JungleQuest", 1)
-                elseif lvl <= 60 then
-                    CommF:InvokeServer("StartQuest", "BuggyQuest1", 1)
-                elseif lvl <= 100 then
-                    CommF:InvokeServer("StartQuest", "DesertQuest", 1)
-                else
-                    -- Seviye atladıkça genel görev tetikleme
-                    CommF:InvokeServer("StartQuest", "MarineQuest2", 1)
-                end
-            end
-        end)
-    end
-end
-
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if States.AutoFarm then
-            if States.AutoQuest then GetCurrentQuest() end
-            
+        if (States.AutoFarm or States.AutoQuest) and States.MobAura then
             pcall(function()
                 local char = LocalPlayer.Character
                 local H = char and char:FindFirstChild("HumanoidRootPart")
-                if not H then return end
-
-                -- Envanterdeki en iyi silahı otomatik eline al
-                local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
-                if tool and tool.Parent == LocalPlayer.Backpack then
-                    char.Humanoid:EquipTool(tool)
-                end
-                
-                local targetEnemy = nil
-                local shortest = math.huge
-                
-                if Workspace:FindFirstChild("Enemies") then
-                    for _, n in Workspace.Enemies:GetChildren() do
-                        if n:FindFirstChild("Humanoid") and n.Humanoid.Health > 0 and n:FindFirstChild("HumanoidRootPart") then
-                            local dist = (H.Position - n.HumanoidRootPart.Position).Magnitude
-                            if dist < shortest then
-                                shortest = dist
-                                targetEnemy = n
+                if H and Workspace:FindFirstChild("Enemies") then
+                    for _, mob in Workspace.Enemies:GetChildren() do
+                        if mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and mob:FindFirstChild("HumanoidRootPart") do
+                            if (mob.HumanoidRootPart.Position - H.Position).Magnitude < 250 then
+                                -- Düşmanı tam karakterin vuruş menziline sabitle ve hareketsiz yap
+                                mob.HumanoidRootPart.CFrame = H.CFrame * CFrame.new(0, -12, -3)
+                                mob.HumanoidRootPart.CanCollide = false
+                                mob.Humanoid.WalkSpeed = 0
                             end
                         end
                     end
                 end
-
-                if targetEnemy then
-                    local targetHRP = targetEnemy.HumanoidRootPart
-                    -- Hasar almamak için düşmanın tam üstünde dur (Safe Hover)
-                    local safeCFrame = targetHRP.CFrame * CFrame.new(0, States.SafeDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    H.CFrame = safeCFrame
-                    H.Velocity = Vector3.new(0, 0, 0) -- Aşağı düşmeyi engelle
-                end
             end)
         end
     end
 end)
 
+-- Ana Görev ve Kesim Döngüsü (Mutex Öncelikli: 1. Seviye)
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if States.AutoQuest or States.AutoFarm then
+            ActiveTask = "FARMING"
+            CreateSafePlatform()
+            
+            local char = LocalPlayer.Character
+            local H = char and char:FindFirstChild("HumanoidRootPart")
+            local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or (char and char:FindFirstChildOfClass("Tool"))
+            
+            if char and H and char:FindFirstChild("Humanoid") then
+                if tool and tool.Parent == LocalPlayer.Backpack then
+                    char.Humanoid:EquipTool(tool)
+                end
+
+                local targetMobName = nil
+                
+                -- Oto Görev Açıksa Görev Durumunu Denetle
+                if States.AutoQuest then
+                    local currentQuest = GetBestQuest()
+                    targetMobName = currentQuest.MobName
+                    
+                    -- Eğer aktif bir görev yoksa sunucudan görevi al
+                    local questTracker = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+                    if not questTracker or not questTracker.Visible then
+                        pcall(function()
+                            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", currentQuest.QuestName, currentQuest.LevelReq)
+                        end)
+                        task.wait(0.5)
+                    end
+                end
+
+                -- Hedef Düşmanı Bul ve Kes
+                if Workspace:FindFirstChild("Enemies") then
+                    local targetFound = false
+                    for _, n in Workspace.Enemies:GetChildren() do
+                        if n:FindFirstChild("Humanoid") and n.Humanoid.Health > 0 and n:FindFirstChild("HumanoidRootPart") then
+                            if not targetMobName or string.find(n.Name, targetMobName) or not States.AutoQuest then
+                                targetFound = true
+                                -- SIFIR HASAR KONUMU: Düşmanın 15 Stud üstünde kafasının tepesinde dur
+                                local safeCFrame = n.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                H.CFrame = safeCFrame
+                                SafePlatform.CFrame = H.CFrame * CFrame.new(0, -3, 0)
+                                
+                                -- Ultra Seri Saldırı (Fast Attack)
+                                if tool then
+                                    tool:Activate()
+                                    if States.FastAttack and pcall(function() return ReplicatedStorage.Remotes.CommF_ end) then
+                                        VirtualUser:ClickButton1(Vector2.new(500, 500))
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                    
+                    if not targetFound and SafePlatform then
+                        SafePlatform.CFrame = CFrame.new(0, -500, 0) -- Hedef yoksa platformu gizle
+                    end
+                end
+            end
+        else
+            if ActiveTask == "FARMING" then ActiveTask = "NONE" end
+            if SafePlatform then SafePlatform.CFrame = CFrame.new(0, -500, 0) end
+        end
+    end
+end)
+
 -- ==========================================
--- 8. KESİNTİSİZ OTO SANDIK (TIMEOUT & BLACKLIST KORUMALI)
+-- 6. OTO BALIK TUTMA VE BALIKÇI GÖREV MOTORU
+-- ==========================================
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if States.AutoFish and ActiveTask == "NONE" then
+            ActiveTask = "FISHING"
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                -- Balıkçıdan Otomatik Görev Alma
+                if States.AutoFishQuest then
+                    pcall(function()
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("FishermanQuest", "Start")
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", "FishQuest", 1)
+                    end)
+                end
+
+                -- Oltayı Kuşan
+                local rod = LocalPlayer.Backpack:FindFirstChild("Fishing Rod") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+                if rod and string.find(string.lower(rod.Name), "rod") then
+                    char.Humanoid:EquipTool(rod)
+                    rod = char:FindFirstChild(rod.Name)
+                end
+
+                -- Suya At ve Minigame Otomatik Tamamla
+                if rod then
+                    rod:Activate()
+                    VirtualUser:ClickButton1(Vector2.new(500, 500))
+                    
+                    -- Olta Minigame Arayüzü Yakalama (Evrensel Roblox Fish GUI Tetikleyicisi)
+                    pcall(function()
+                        local fishGui = LocalPlayer.PlayerGui:FindFirstChild("Fishing") or LocalPlayer.PlayerGui:FindFirstChild("FishGUI")
+                        if fishGui and fishGui.Enabled then
+                            -- Progress barı anında doldur veya sürekli tıkla
+                            local btn = fishGui:FindFirstChildOfClass("ImageButton") or fishGui:FindFirstChildOfClass("TextButton", true)
+                            if btn then
+                                VirtualUser:ClickButton1(Vector2.new(btn.AbsolutePosition.X, btn.AbsolutePosition.Y))
+                            end
+                            if fishGui:FindFirstChild("Progress") then
+                                fishGui.Progress.Value = 100
+                            end
+                        end
+                    end)
+                end
+            end
+        elseif ActiveTask == "FISHING" and not States.AutoFish then
+            ActiveTask = "NONE"
+        end
+    end
+end)
+
+-- ==========================================
+-- 7. KİLİTLENMEYEN OTO SANDIK & MEYVE BULUCU
 -- ==========================================
 task.spawn(function()
     while true do
         task.wait(0.05)
-        if States.AutoChest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        -- Sadece Farm veya Balık tutma çalışmıyorsa sandık topla (Çakışma Koruması)
+        if States.AutoChest and ActiveTask == "NONE" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            ActiveTask = "CHESTING"
             pcall(function()
                 local H = LocalPlayer.Character.HumanoidRootPart
                 local closestChest = nil
                 local shortest = math.huge
+                local targetIndex = -1
                 
-                for _, v in CachedChests do
-                    if v and v.Parent and not ChestBlacklist[v] then
+                for idx, v in ipairs(CachedChests) do
+                    if v and v.Parent and v:IsA("BasePart") then
                         local dist = (H.Position - v.Position).Magnitude
                         if dist < shortest then
                             shortest = dist
                             closestChest = v
+                            targetIndex = idx
                         end
                     end
                 end
                 
                 if closestChest then
                     local chestSpeed = 350
-                    local tweenTime = math.clamp(shortest / chestSpeed, 0.05, 1.5)
+                    local tweenTime = math.clamp(shortest / chestSpeed, 0.05, 0.8)
+                    local movementTween = TweenService:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestChest.CFrame})
+                    movementTween:Play()
                     
-                    if ActiveTween then ActiveTween:Cancel() end
-                    ActiveTween = TweenService:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestChest.CFrame})
-                    ActiveTween:Play()
+                    -- Sandığa değme sinyali gönder
+                    if firetouchinterest then
+                        firetouchinterest(H, closestChest, 0)
+                        firetouchinterest(H, closestChest, 1)
+                    end
                     
-                    -- Takılma önleyici: Eğer tween 2.5 saniyede bitmezse sandığı kara listeye al
-                    local startTime = tick()
-                    repeat
-                        task.wait(0.05)
-                        if firetouchinterest then
-                            firetouchinterest(H, closestChest, 0)
-                            firetouchinterest(H, closestChest, 1)
-                        end
-                    until not States.AutoChest or not closestChest.Parent or (H.Position - closestChest.Position).Magnitude < 5 or (tick() - startTime) > 2.5
+                    movementTween.Completed:Wait()
                     
-                    -- Sandık alındıysa veya takıldıysa kara listeye ekle ki bir sonrakine geçsin
-                    ChestBlacklist[closestChest] = true
-                    task.delay(15, function() ChestBlacklist[closestChest] = nil end) -- 15 sn sonra listeden çıkar
+                    -- Kilitlenmeyi önlemek için toplanan sandığı önbellekten ANINDA sil
+                    if targetIndex ~= -1 then
+                        table.remove(CachedChests, targetIndex)
+                    end
+                    closestChest:Destroy() -- İstemci tarafında silerek tekrar hedeflenmesini engelle
                 else
-                    task.wait(0.5)
+                    task.wait(0.2)
                 end
             end)
+        elseif ActiveTask == "CHESTING" and not States.AutoChest then
+            ActiveTask = "NONE"
         end
     end
 end)
 
--- ==========================================
--- 9. OTO BALIK TUTMA VE GÖREV ROTASYONU
--- ==========================================
-task.spawn(function()
-    while true do
-        task.wait(0.2)
-        if States.AutoFish then
-            pcall(function()
-                local char = LocalPlayer.Character
-                -- Oltayı bul ve kuşan
-                local rod = char:FindFirstChildOfClass("Tool")
-                if not rod or not string.find(string.lower(rod.Name), "rod") then
-                    for _, t in LocalPlayer.Backpack:GetChildren() do
-                        if t:IsA("Tool") and string.find(string.lower(t.Name), "rod") then
-                            char.Humanoid:EquipTool(t)
-                            rod = t
-                            break
-                        end
-                    end
-                end
-
-                if rod then
-                    -- Balıkçı görevini otomatik al
-                    if States.AutoFishQuest then
-                        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-                        if CommF then CommF:InvokeServer("StartQuest", "FishQuest", 1) end
-                    end
-
-                    -- Oltayı fırlat ve çek (Sürekli Tıklama Simülasyonu)
-                    rod:Activate()
-                    VirtualUser:Button1Down(Vector2.new(500, 500))
-                    task.wait(0.1)
-                    VirtualUser:Button1Up(Vector2.new(500, 500))
-                    
-                    -- Ekranda balık tutma mini-game butonu çıkarsa otomatik tıkla
-                    local pg = LocalPlayer:FindFirstChild("PlayerGui")
-                    if pg then
-                        for _, gui in pg:GetDescendants() do
-                            if gui:IsA("TextButton") or gui:IsA("ImageButton") then
-                                if string.find(string.lower(gui.Name), "fish") or string.find(string.lower(gui.Name), "reel") or string.find(string.lower(gui.Name), "catch") then
-                                    if gui.Visible and gui.Active then
-                                        VirtualUser:ClickButton1(Vector2.new(gui.AbsolutePosition.X + (gui.AbsoluteSize.X/2), gui.AbsolutePosition.Y + (gui.AbsoluteSize.Y/2)))
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ==========================================
--- 10. FRUIT FINDER & ESP MOTORU
--- ==========================================
+-- Meyve ESP ve Otomatik Gitme (Mutex Öncelik: 3)
 task.spawn(function()
     while true do
         task.wait(0.5)
         local char = LocalPlayer.Character
         local H = char and char:FindFirstChild("HumanoidRootPart")
         local fCount = 0
-        local closestFruitPart = nil
-        local shortestDistance = math.huge
+        local closestFruitPart, shortestDistance = nil, math.huge
         
-        for _, o in CachedFruits do
+        for _, o in ipairs(CachedFruits) do
             if o and o.Parent then
                 local targetPart = o:FindFirstChild("Handle") or o:FindFirstChildOfClass("MeshPart") or o:FindFirstChildOfClass("Part")
                 if targetPart then
                     fCount = fCount + 1
-                    local cleanName = o.Name
-                    local isMysterious = false
-                    
-                    if o:IsA("Model") then
-                        cleanName = "❓ GİZEMLİ MEYVE ❓"; isMysterious = true
-                    elseif o:IsA("Tool") then
-                        cleanName = string.gsub(cleanName, " Fruit", "")
-                        cleanName = string.gsub(cleanName, "Fruit", "")
-                        cleanName = string.gsub(cleanName, "Blox", "")
-                        cleanName = cleanName:match("^%s*(.-)%s*$") or cleanName
-                    end
-                    
-                    local displayText = FruitIcons[cleanName] or (isMysterious and "❓ GİZEMLİ MEYVE" or "🍎 " .. cleanName)
+                    local cleanName = o:IsA("Model") and "❓ GİZEMLİ MEYVE ❓" or string.gsub(o.Name, " Fruit", "")
                     
                     if States.FruitFinder then
-                        local esp = o:FindFirstChild("ESP_GUI")
-                        if not esp then
-                            esp = Instance.new("BillboardGui", o)
-                            esp.Name = "ESP_GUI"; esp.Size = UDim2.new(0, 150, 0, 50)
-                            esp.AlwaysOnTop = true; esp.Adornee = targetPart
-                            
+                        local esp = o:FindFirstChild("ESP_GUI") or Instance.new("BillboardGui", o)
+                        if esp.Name ~= "ESP_GUI" then
+                            esp.Name = "ESP_GUI"; esp.Size = UDim2.new(0, 150, 0, 50); esp.AlwaysOnTop = true; esp.Adornee = targetPart
                             local l = Instance.new("TextLabel", esp)
                             l.Name = "NameLabel"; l.Size = UDim2.new(1, 0, 1, 0); l.BackgroundTransparency = 1
-                            l.TextColor3 = isMysterious and Color3.fromRGB(255, 85, 0) or Color3.fromRGB(85, 255, 127)
-                            l.TextStrokeTransparency = 0; l.Font = Enum.Font.GothamBlack
+                            l.TextColor3 = Color3.fromRGB(85, 255, 127); l.Font = Enum.Font.GothamBlack
                         end
-                        
-                        if H then
+                        if H and esp:FindFirstChild("NameLabel") then
                             local dist = (H.Position - targetPart.Position).Magnitude
-                            local lbl = esp:FindFirstChild("NameLabel")
-                            if lbl then
-                                lbl.Text = string.format("%s\n[%.0f m]", displayText, dist)
-                                lbl.TextSize = math.clamp(150 / (dist / 10), 12, 22)
-                            end
-                            if dist < shortestDistance then
-                                shortestDistance = dist; closestFruitPart = targetPart
-                            end
+                            esp.NameLabel.Text = string.format("%s\n[%.0f m]", cleanName, dist)
+                            if dist < shortestDistance then shortestDistance = dist; closestFruitPart = targetPart end
                         end
-                    else
-                        if o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
-                    end
+                    elseif o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
                 end
             end
         end
         _UpdateFruitCount = fCount
         
-        if States.AutoMoveFruit and closestFruitPart and H then
-            ResolveConflicts("AutoMoveFruit")
-            local tweenTime = shortestDistance / 300 
-            TweenService:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame * CFrame.new(0, 3, 0)}):Play()
+        if States.AutoMoveFruit and closestFruitPart and H and ActiveTask == "NONE" then
+            ActiveTask = "FRUITING"
+            TweenService:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame * CFrame.new(0, 3, 0)}):Play()
+        elseif ActiveTask == "FRUITING" and not States.AutoMoveFruit then
+            ActiveTask = "NONE"
         end
     end
 end)
 
 -- ==========================================
--- 11. GÜNDOĞDİSEX V3.0 UI ARAYÜZÜ
+-- 8. GÜNDOĞDİSEX V3.0 KULLANICI ARAYÜZÜ (UI)
 -- ==========================================
 if CoreGui:FindFirstChild("GDX_V3") then CoreGui.GDX_V3:Destroy() end
 
-local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "GDX_V3"
-
+local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "GDX_V3"
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 500, 0, 720) 
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -360)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 5, 5)
-MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
-MainFrame.BorderSizePixel = 2
-MainFrame.Active = true
-MainFrame.Draggable = true
+MainFrame.Size = UDim2.new(0, 500, 0, 720); MainFrame.Position = UDim2.new(0.5, -250, 0.5, -360)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 8, 8); MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0); MainFrame.BorderSizePixel = 2
+MainFrame.Active = true; MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 50); Title.BackgroundTransparency = 1
-Title.Text = "GÜNDOĞDİSEX V3.0 PRO ULTIMATE 👑"
-Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 24
+Title.Size = UDim2.new(1, 0, 0, 45); Title.BackgroundTransparency = 1; Title.Text = "GÜNDOĞDİSEX V3.0 APEX 👑"
+Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 26
 
 local Scroll = Instance.new("ScrollingFrame", MainFrame)
 Scroll.Size = UDim2.new(1, -20, 1, -110); Scroll.Position = UDim2.new(0, 10, 0, 50)
 Scroll.BackgroundTransparency = 1; Scroll.ScrollBarThickness = 6; Scroll.ScrollBarImageColor3 = Color3.fromRGB(255,0,0)
 
-local UIList = Instance.new("UIListLayout", Scroll)
-UIList.Padding = UDim.new(0, 8); UIList.SortOrder = Enum.SortOrder.LayoutOrder
+local UIList = Instance.new("UIListLayout", Scroll); UIList.Padding = UDim.new(0, 8); UIList.SortOrder = Enum.SortOrder.LayoutOrder
 
 local function CreateCategory(name)
-    local lbl = Instance.new("TextLabel", Scroll)
-    lbl.Size = UDim2.new(1, 0, 0, 30); lbl.BackgroundTransparency = 1
-    lbl.Text = "  ■ " .. name; lbl.TextColor3 = Color3.fromRGB(255, 200, 200); lbl.Font = Enum.Font.GothamBlack
-    lbl.TextSize = 16; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    local lbl = Instance.new("TextLabel", Scroll); lbl.Size = UDim2.new(1, 0, 0, 28); lbl.BackgroundTransparency = 1
+    lbl.Text = "  ■ " .. name; lbl.TextColor3 = Color3.fromRGB(255, 180, 180); lbl.Font = Enum.Font.GothamBlack; lbl.TextSize = 16; lbl.TextXAlignment = Enum.TextXAlignment.Left
 end
 
-local function CreateToggle(name, stateKey, extraText, conflictMode)
-    local frame = Instance.new("Frame", Scroll)
-    frame.Size = UDim2.new(1, 0, 0, 45); frame.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
+local function CreateToggle(name, stateKey, extraText)
+    local frame = Instance.new("Frame", Scroll); frame.Size = UDim2.new(1, 0, 0, 45); frame.BackgroundColor3 = Color3.fromRGB(25, 12, 12)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
 
-    local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(0.65, 0, 0.6, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
-    lbl.BackgroundTransparency = 1; lbl.Text = name; lbl.TextColor3 = Color3.new(1,1,1)
-    lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 13; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    local lbl = Instance.new("TextLabel", frame); lbl.Size = UDim2.new(0.65, 0, extraText and 0.55 or 1, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1; lbl.Text = name; lbl.TextColor3 = Color3.new(1,1,1); lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 13; lbl.TextXAlignment = Enum.TextXAlignment.Left
 
     if extraText then
-        local sub = Instance.new("TextLabel", frame)
-        sub.Size = UDim2.new(0.65, 0, 0.4, 0); sub.Position = UDim2.new(0, 10, 0.6, 0)
-        sub.BackgroundTransparency = 1; sub.Text = extraText; sub.TextColor3 = Color3.fromRGB(150,150,150)
-        sub.Font = Enum.Font.Gotham; sub.TextSize = 11; sub.TextXAlignment = Enum.TextXAlignment.Left
+        local sub = Instance.new("TextLabel", frame); sub.Size = UDim2.new(0.65, 0, 0.45, 0); sub.Position = UDim2.new(0, 10, 0.55, 0)
+        sub.BackgroundTransparency = 1; sub.Text = extraText; sub.TextColor3 = Color3.fromRGB(170,170,170); sub.Font = Enum.Font.Gotham; sub.TextSize = 10; sub.TextXAlignment = Enum.TextXAlignment.Left
     end
 
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(0, 70, 0, 30); btn.Position = UDim2.new(1, -80, 0.5, -15)
+    local btn = Instance.new("TextButton", frame); btn.Size = UDim2.new(0, 70, 0, 28); btn.Position = UDim2.new(1, -80, 0.5, -14)
     btn.BackgroundColor3 = States[stateKey] and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
     btn.Text = States[stateKey] and "ON" or "OFF"; btn.TextColor3 = Color3.new(1,1,1); btn.Font = Enum.Font.GothamBold
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
     btn.MouseButton1Click:Connect(function()
         States[stateKey] = not States[stateKey]
-        if States[stateKey] and conflictMode then
-            ResolveConflicts(conflictMode)
-        end
         btn.BackgroundColor3 = States[stateKey] and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
         btn.Text = States[stateKey] and "ON" or "OFF"
     end)
-    return frame, lbl, btn
-end
-
-local function CreateButton(name, btnText, callback)
-    local frame = Instance.new("Frame", Scroll)
-    frame.Size = UDim2.new(1, 0, 0, 45); frame.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
-
-    local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(0.55, 0, 1, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
-    lbl.BackgroundTransparency = 1; lbl.Text = name; lbl.TextColor3 = Color3.new(1,1,1)
-    lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 13; lbl.TextXAlignment = Enum.TextXAlignment.Left
-
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(0, 150, 0, 30); btn.Position = UDim2.new(1, -160, 0.5, -15)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 15, 15); btn.BorderColor3 = Color3.fromRGB(255, 0, 0); btn.BorderSizePixel = 1
-    btn.Text = btnText; btn.TextColor3 = Color3.fromRGB(255,100,100); btn.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
-    btn.MouseButton1Click:Connect(callback)
+    return frame, lbl
 end
 
 -- MENÜ İÇERİKLERİ
-CreateCategory("🔥 ANA FARM & SAVAŞ AYARLARI")
-CreateToggle("⚔️ Akıllı Oto Farm (Safe Hover)", "AutoFarm", "Hasar almadan düşman tepesinde farmlar", "AutoFarm")
-CreateToggle("📜 Oto Görev Alımı (Auto Quest)", "AutoQuest", "Seviyene uygun görevi alır ve bitirir")
-CreateToggle("⚡ Ultra Hızlı Vuruş (Fast Attack)", "FastAttack", "Saniyede 20+ vuruş simülasyonu yapar")
-CreateButton("🛡️ Güvenli Mesafe Ayarı ("..States.SafeDistance.."m)", "MESAFE DEĞİŞTİR", function()
-    States.SafeDistance = (States.SafeDistance == 15) and 20 or ((States.SafeDistance == 20) and 25 or 15)
-end)
+CreateCategory("🚀 GELİŞMİŞ SAVAŞ & GÖREV (ÇAKIŞMA KORUMALI)")
+CreateToggle("🤖 Akıllı Oto Görev (Smart Quest)", "AutoQuest", "Seviyene uygun görevi alır, durdurana kadar looplar.")
+CreateToggle("⚔️ Oto Farm (Sıfır Hasar / Hover)", "AutoFarm", "Düşmanın tepesinde güvenli platformda vurur.")
+CreateToggle("🧲 Mob Aura (Toplu Kesim / Bring)", "MobAura", "Etraftaki tüm mobları vurduğun yere kilitler.")
+CreateToggle("⚡ Fast Attack (Seri Vuruş)", "FastAttack", "Saldırı hızını maksimuma çıkarır.")
 
-CreateCategory("🎣 OTO BALIK TUTMA (YENİ)")
-CreateToggle("🐟 Oto Balık Tut (Auto Fish)", "AutoFish", "Oltayı takar, atar ve mini-game geçer", "AutoFish")
-CreateToggle("📋 Oto Balıkçı Görevi Al", "AutoFishQuest", "Balıkçı NPC görevini sürekli yeniler")
+CreateCategory("🎣 OTO BALIK VE BALIKÇI GÖREVİ")
+CreateToggle("🐟 Oto Balık Tutma (Auto Fish)", "AutoFish", "Oltayı atar ve minigame'i hatasız tamamlar.")
+CreateToggle("📜 Balıkçıdan Oto Görev Al", "AutoFishQuest", "Balık tutarken sürekli NPC'den görev yeniler.")
 
-CreateCategory("💰 SANDIK VE MEYVE AVCI")
-CreateToggle("💰 Kesintisiz Oto Sandık Topla", "AutoChest", "Takılmayan akıllı hızlandırılmış rota!", "AutoChest")
-local fruitFrame, fruitLbl = CreateToggle("🍎 Meyve Göstergesi (ESP)", "FruitFinder", "0 Meyve Algılandı!")
-CreateToggle("⭐ Algılanan Meyveye Uç", "AutoMoveFruit", "Sandık/Farm açıkken bunu açmayın!", "AutoMoveFruit")
-CreateButton("🎁 Rastgele Meyve Satın Al (Gacha)", "MEYVE ÇEK", function()
-    pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("Cousin", "Buy") end)
-end)
+CreateCategory("💰 TOPLAMA & MEYVE (MUTEX KONTROLLÜ)")
+CreateToggle("💰 Ultra Oto Sandık (No-Freeze)", "AutoChest", "Alınan sandık anında silinir, asla kilitlenmez!")
+local fruitFrame = CreateToggle("🍎 Meyve Bulucu & ESP", "FruitFinder", "0 Meyve Algılandı!")
+CreateToggle("⭐ Meyveye Otomatik Git", "AutoMoveFruit", "En yakın meyveye ışınlanır.")
 
-CreateCategory("⚡ HAREKET & OYUNCU HİLELERİ")
-local _, spdLabel = CreateToggle("⚡ Hız Hilesi (Aktif: "..States.SpeedValue..")", "SpeedHack")
-CreateButton("Hızı Arttır (+25)", "HIZ AYARLA", function()
-    States.SpeedValue = States.SpeedValue + 25
-    if States.SpeedValue > 300 then States.SpeedValue = 50 end
-    spdLabel.Text = "⚡ Hız Hilesi (Aktif: "..States.SpeedValue..")"
-end)
-CreateToggle("🦅 Uçma Modu (Fly Mode)", "Fly", "Dikey [W/S] - Yatay [Mouse Yönü]")
-CreateToggle("👻 Duvarlardan Geç (Noclip)", "Noclip", "Engellere takılmadan ilerle")
-CreateToggle("✔ Sınırsız Enerji (Stamina)", "InfStamina", "Koşarken/beceri kullanırken bitmez")
+CreateCategory("⚡ KARAKTER HİLELERİ")
+CreateToggle("⚡ Hız Hilesi (Speed Hack)", "SpeedHack", "Walkspeed değerini artırır.")
+CreateToggle("✔ Sınırsız Stamina", "InfStamina", "Enerjinin tükenmesini engeller.")
+CreateToggle("👻 Duvarlardan Geçme (NoClip)", "Noclip", "Tüm engellerin içinden geçmeni sağlar.")
 
-CreateCategory("🏝️ ADALARA IŞINLANMA")
-local targetFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations") or Workspace:FindFirstChild("Locations")
-if targetFolder then
-    for _, island in targetFolder:GetChildren() do
-        if island:IsA("BasePart") or island:IsA("Model") then
-            CreateButton("🏝️ " .. island.Name, "IŞINLAN", function()
-                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local targetCFrame = island:IsA("BasePart") and island.CFrame or island:GetPivot()
-                    TweenService:Create(hrp, TweenInfo.new(3, Enum.EasingStyle.Linear), {CFrame = targetCFrame + Vector3.new(0, 100, 0)}):Play()
-                end
-            end)
-        end
-    end
-end
-
--- Meyve sayacını canlı güncelle
+-- DİNAMİK MEYVE SAYACI GÜNCELLEMESİ
 task.spawn(function()
     while true do
         task.wait(1)
@@ -623,28 +508,20 @@ task.spawn(function()
     end
 end)
 
--- ALT BAR
-local BottomBar = Instance.new("Frame", MainFrame)
-BottomBar.Size = UDim2.new(1, 0, 0, 50); BottomBar.Position = UDim2.new(0, 0, 1, -50)
-BottomBar.BackgroundColor3 = Color3.fromRGB(10, 0, 0)
-
-local function AddBottomBtn(txt, pos, callback)
-    local b = Instance.new("TextButton", BottomBar)
-    b.Size = UDim2.new(0.3, 0, 0.6, 0); b.Position = UDim2.new(pos, 0, 0.2, 0)
-    b.BackgroundColor3 = Color3.fromRGB(30, 10, 10); b.BorderColor3 = Color3.fromRGB(200,0,0)
-    b.Text = txt; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
-    b.MouseButton1Click:Connect(callback)
+-- ALT KONTROL BAR VE KISAYOLLAR
+local BottomBar = Instance.new("Frame", MainFrame); BottomBar.Size = UDim2.new(1, 0, 0, 45); BottomBar.Position = UDim2.new(0, 0, 1, -45); BottomBar.BackgroundColor3 = Color3.fromRGB(10, 5, 5)
+local function AddBottomBtn(txt, pos, cb)
+    local b = Instance.new("TextButton", BottomBar); b.Size = UDim2.new(0.3, 0, 0.7, 0); b.Position = UDim2.new(pos, 0, 0.15, 0)
+    b.BackgroundColor3 = Color3.fromRGB(40, 10, 10); b.BorderColor3 = Color3.fromRGB(200,0,0); b.Text = txt; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); b.MouseButton1Click:Connect(cb)
 end
 
-AddBottomBtn("AYARLARI KAYDET", 0.03, function() print("Ayarlar başarıyla kaydedildi.") end)
-AddBottomBtn("GİZLE / AÇ [K]", 0.35, function() MainFrame.Visible = not MainFrame.Visible end)
-AddBottomBtn("ARAYÜZÜ KAPAT", 0.67, function() ScreenGui:Destroy() end)
+AddBottomBtn("GİZLE [K]", 0.03, function() MainFrame.Visible = false end)
+AddBottomBtn("KONSOL [F9]", 0.35, function() pcall(function() game:GetService("StarterGui"):SetCore("DevConsoleVisible", true) end) end)
+AddBottomBtn("AĞI TEMİZLE", 0.67, function() CachedChests = {}; CachedFruits = {} end)
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
-        if MainFrame then MainFrame.Visible = not MainFrame.Visible end
-    end
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == Enum.KeyCode.K then MainFrame.Visible = not MainFrame.Visible end
 end)
 
 Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 20)
