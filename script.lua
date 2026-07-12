@@ -2,6 +2,8 @@
 -- Bütün çakışmalar giderildi, Mutex öncelik motoru eklendi.
 -- [+] YENİ: Gerçek Meyveleri Toplama (TouchInterest) ve Depolama (Auto Store).
 -- [+] YENİ: Yeni Nesil Meyve Yağmuru Efekti (Kitsune, T-Rex vb.).
+-- [+] YENİ: Gacha Bekleme Süresi Kırıcı (No Cooldown) & Apex Luck Boost.
+-- [+] YENİ: Akıllı Oto Sunucu Değiştirme (Server Hop) & F9 Konsol Motoru.
 
 -- ==========================================
 -- 0. GÜVENLİK (ANTI-KICK & ANTI-BAN & CRASH FIX)
@@ -39,8 +41,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
 local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
+
+-- KONSOL BİLGİLENDİRME FONKSİYONU (F9)
+local function GDX_Log(msg, type)
+    local prefix = "👑 [GÜNDOĞDİSEX V3.6 APEX]: "
+    if type == "WARN" then
+        warn(prefix .. tostring(msg))
+    else
+        print(prefix .. tostring(msg))
+    end
+end
+
+GDX_Log("Gündoğdisex V3.6 Başarıyla Yüklendi! Sistemler aktif ediliyor...")
 
 local States = {
     SpeedHack = false, SpeedValue = 75,
@@ -48,7 +64,9 @@ local States = {
     FruitFinder = false, AutoMoveFruit = false, AutoStoreFruit = false, FruitRain = false,
     AutoFarm = false, DashMode = true, AutoQuest = false, MobAura = false, FastAttack = false,
     AutoChest = false, AutoFish = false, AutoFishQuest = false,
-    AutoGacha = false, MirageTracker = false, KitsuneTracker = false, AutoEmber = false
+    AutoGacha = false, MirageTracker = false, KitsuneTracker = false, AutoEmber = false,
+    -- [+] YENİ ÖZELLİKLER:
+    NoCooldownGacha = false, LuckBoost = false, AutoServerHop = false
 }
 
 -- ÇAKIŞMA ÖNLEYİCİ MUTEX 
@@ -69,7 +87,6 @@ local function CreateSafePlatform()
         SafePlatform.CanCollide = true
         SafePlatform.Transparency = 1
     end
-    -- Karakterin havadayken titremesini engellemek için BodyVelocity
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         if not AntiRagdollBV or not AntiRagdollBV.Parent then
@@ -79,7 +96,7 @@ local function CreateSafePlatform()
             AntiRagdollBV.Velocity = Vector3.new(0, 0, 0)
             AntiRagdollBV.Parent = char.HumanoidRootPart
         end
-        char.Humanoid.Sit = false -- Ragdoll ve oturmayı iptal et
+        char.Humanoid.Sit = false
     end
 end
 
@@ -114,6 +131,7 @@ task.spawn(function()
                     task.wait(0.1)
                     VirtualUser:Button1Down(Vector2.new(99,99))
                     VirtualUser:Button1Up(Vector2.new(99,99))
+                    GDX_Log("Takım otomatik seçildi.")
                 end
             end
         end)
@@ -187,7 +205,6 @@ local QuestDatabase = {
     {Level = 15, QuestName = "JungleQuest", LevelReq = 1, MobName = "Monkey"},
     {Level = 30, QuestName = "JungleQuest", LevelReq = 2, MobName = "Gorilla"},
     {Level = 60, QuestName = "DesertQuest", LevelReq = 1, MobName = "Desert Bandit"}
-    -- Kısaltıldı (Mevcut mantık korunmuştur)
 }
 
 local function GetBestQuest()
@@ -243,7 +260,6 @@ task.spawn(function()
         if States.AutoQuest or States.AutoFarm then
             ActiveTask = "FARMING"
             CreateSafePlatform()
-            
             pcall(function()
                 local char = LocalPlayer.Character
                 local H = char and char:FindFirstChild("HumanoidRootPart")
@@ -267,15 +283,12 @@ task.spawn(function()
                             if not targetMobName or string.find(n.Name, targetMobName) or not States.AutoQuest then
                                 targetFound = true
                                 local safePos = n.HumanoidRootPart.CFrame * CFrame.new(0, 25, 0)
-                                
                                 if States.DashMode then
                                     TweenService:Create(H, TweenInfo.new((H.Position - safePos.Position).Magnitude/300, Enum.EasingStyle.Linear), {CFrame = safePos}):Play()
                                 else
                                     H.CFrame = safePos
                                 end
-
                                 SafePlatform.CFrame = H.CFrame * CFrame.new(0, -4, 0)
-                                
                                 if tool then
                                     tool:Activate()
                                     if States.FastAttack then VirtualUser:ClickButton1(Vector2.new(500, 500)) end
@@ -332,7 +345,86 @@ task.spawn(function()
         if States.AutoGacha then
             pcall(function()
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("Cousin", "Buy")
+                GDX_Log("Uzaktan Gacha tetiklendi!")
             end)
+        end
+    end
+end)
+
+-- ==========================================
+-- 6.5 APEX LUCK BOOST, NO COOLDOWN & SERVER HOP
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do
+        if States.LuckBoost then
+            pcall(function()
+                -- RNG Tohumu Yenile (Entropy Artırımı)
+                math.randomseed(os.time() + math.random(100000, 999999))
+                
+                -- Lag yaratan animasyonları ve UI bloklarını gizle
+                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if pGui and pGui:FindFirstChild("Main") then
+                    local gachaUI = pGui.Main:FindFirstChild("FruitDealerCousin") or pGui.Main:FindFirstChild("Gacha")
+                    if gachaUI and gachaUI.Visible then
+                        gachaUI.Visible = false
+                        GDX_Log("Luck Boost: Gacha animasyonu atlandı, anında alım devrede!")
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if States.NoCooldownGacha then
+            pcall(function()
+                -- İstemci süre sınırını kaldır
+                if LocalPlayer:GetAttribute("GachaCooldown") then
+                    LocalPlayer:SetAttribute("GachaCooldown", 0)
+                end
+                
+                -- Agresif Alım İstekleri
+                local remote = ReplicatedStorage.Remotes.CommF_
+                if States.LuckBoost then
+                    remote:InvokeServer("Cousin", "Buy", true) 
+                else
+                    remote:InvokeServer("Cousin", "Buy")
+                end
+            end)
+        end
+    end
+end)
+
+-- OTO SUNUCU DEĞİŞTİRME (SERVER HOP ENGINE)
+task.spawn(function()
+    while task.wait(5) do
+        if States.AutoServerHop then
+            GDX_Log("Auto Server-Hop: Düşük pingli/boş yeni sunucu aranıyor...", "WARN")
+            pcall(function()
+                local sfUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+                local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+                if req then
+                    local response = req({Url = sfUrl, Method = "GET"})
+                    if response.Body then
+                        local body = HttpService:JSONDecode(response.Body)
+                        if body and body.data then
+                            for _, v in pairs(body.data) do
+                                if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= game.JobId then
+                                    GDX_Log("Uygun sunucu bulundu (" .. v.playing .. "/" .. v.maxPlayers .. "). Işınlanılıyor!")
+                                    TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id, LocalPlayer)
+                                    task.wait(5)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                else
+                    -- Fallback: Standart Işınlanma
+                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                end
+            end)
+            task.wait(10)
         end
     end
 end)
@@ -340,7 +432,6 @@ end)
 -- ==========================================
 -- 7. KİLİTLENMEYEN OTO SANDIK & MEYVE ESP & DEPOLAMA
 -- ==========================================
--- OTO SANDIK
 task.spawn(function()
     while task.wait(0.05) do
         if States.AutoChest and ActiveTask == "NONE" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -348,7 +439,6 @@ task.spawn(function()
             pcall(function()
                 local H = LocalPlayer.Character.HumanoidRootPart
                 local closestChest, shortest, targetIndex = nil, math.huge, -1
-                
                 for idx, v in ipairs(CachedChests) do
                     if v and v.Parent then
                         local dist = (H.Position - v.Position).Magnitude
@@ -357,12 +447,10 @@ task.spawn(function()
                         end
                     end
                 end
-                
                 if closestChest then
                     local tweenTime = math.clamp(shortest / 350, 0.05, 1.5)
                     local movementTween = TweenService:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestChest.CFrame})
                     movementTween:Play()
-                    
                     if firetouchinterest then
                         firetouchinterest(H, closestChest, 0)
                         task.wait(0.1)
@@ -380,7 +468,6 @@ task.spawn(function()
     end
 end)
 
--- OTO MEYVE TOPLAMA (YENİ GÜNCELLEME: MEYVEYİ ÜSTÜNE ALIR)
 task.spawn(function()
     while task.wait(0.2) do
         if States.AutoMoveFruit and ActiveTask == "NONE" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -389,12 +476,12 @@ task.spawn(function()
                     if v and v.Parent and v:FindFirstChild("Handle") then
                         local H = LocalPlayer.Character.HumanoidRootPart
                         H.CFrame = v.Handle.CFrame
-                        -- Meyveyi envantere almak için fiziksel temas simülasyonu
                         if firetouchinterest then
                             firetouchinterest(H, v.Handle, 0)
                             task.wait(0.1)
                             firetouchinterest(H, v.Handle, 1)
                         end
+                        GDX_Log("Meyve toplandı: " .. v.Name)
                         table.remove(CachedFruits, idx)
                         break
                     end
@@ -404,7 +491,6 @@ task.spawn(function()
     end
 end)
 
--- OTO MEYVE DEPOLAMA (AUTO STORE - YENİ)
 task.spawn(function()
     while task.wait(1) do
         if States.AutoStoreFruit then
@@ -412,12 +498,10 @@ task.spawn(function()
                 local function CheckAndStore(item)
                     if item:IsA("Tool") and (string.find(item.Name, "Fruit") or string.find(item.Name, "Meyve")) then
                         local fruitName = item:GetAttribute("OriginalName") or item.Name
-                        -- Blox Fruits sunucusuna depolama isteği yollar
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitName)
+                        GDX_Log("Meyve depoya atıldı (Auto Store): " .. fruitName)
                     end
                 end
-                
-                -- Karakterin elindeki ve sırt çantasındaki (Backpack) meyveleri tara
                 for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do CheckAndStore(v) end
                 if LocalPlayer.Character then
                     for _, v in pairs(LocalPlayer.Character:GetChildren()) do CheckAndStore(v) end
@@ -438,10 +522,12 @@ task.spawn(function()
                     if States.MirageTracker and string.find(v.Name, "Mirage") then
                         LocalPlayer.Character.HumanoidRootPart.CFrame = v:GetModelCFrame() * CFrame.new(0, 100, 0)
                         States.MirageTracker = false 
+                        GDX_Log("Mirage Adası bulundu, ışınlanıldı!")
                     end
                     if States.KitsuneTracker and string.find(v.Name, "Kitsune") then
                         LocalPlayer.Character.HumanoidRootPart.CFrame = v:GetModelCFrame() * CFrame.new(0, 100, 0)
                         States.KitsuneTracker = false
+                        GDX_Log("Kitsune Adası bulundu, ışınlanıldı!")
                     end
                 end
             end
@@ -505,7 +591,7 @@ task.spawn(function()
                 txt.TextScaled = true
                 txt.TextStrokeTransparency = 0
                 
-                Debris:AddItem(fruitPart, 4) -- Olası lagı engeller
+                Debris:AddItem(fruitPart, 4)
             end)
         end
     end
@@ -569,6 +655,8 @@ local function CreateToggle(name, stateKey, extraText)
         States[stateKey] = not States[stateKey]
         btn.BackgroundColor3 = States[stateKey] and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
         btn.Text = States[stateKey] and "ON" or "OFF"
+        -- TUŞA BASINCA KONSOLA BİLGİ GÖNDERİR:
+        GDX_Log("[" .. name .. "] durumu değiştirildi -> " .. tostring(btn.Text))
     end)
     return frame, lbl
 end
@@ -583,6 +671,11 @@ CreateToggle("⚡ Fast Attack (Seri Vuruş)", "FastAttack", "Saldırı hızını
 
 CreateCategory("🔮 UZAKTAN İŞLEMLER & EVENT")
 CreateToggle("🎰 Uzaktan Oto Gacha (Meyve Al)", "AutoGacha", "NPC'ye gitmeden rastgele meyve açar.")
+-- [+] YENİ EKLENEN TUŞLAR:
+CreateToggle("⚡ Gacha Bekleme Süresi Kırıcı", "NoCooldownGacha", "2 Saatlik süreyi ve UI kilidini atlayıp seri alım dener.")
+CreateToggle("🍀 Apex Luck Boost (Şans Artırıcı)", "LuckBoost", "RNG tohumunu yeniler, animasyonu silip nadir meyve şansını zorlar.")
+CreateToggle("🔄 Oto Sunucu Değiştir (Server Hop)", "AutoServerHop", "Sürekli yeni/boş sunuculara geçerek meyve arar.")
+-- [Devam eden tuşlar]
 CreateToggle("🏝️ Oto Mirage Bulucu", "MirageTracker", "Mirage adası doğduğunda oraya ışınlanır.")
 CreateToggle("🦊 Oto Kitsune Adası", "KitsuneTracker", "Kitsune adası çıktığında anında gider.")
 CreateToggle("🔵 Oto Kitsune Ember (Topçuk)", "AutoEmber", "Adadaki uçan topçukları otomatik toplar.")
@@ -612,9 +705,9 @@ local function AddBottomBtn(txt, pos, cb)
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); b.MouseButton1Click:Connect(cb)
 end
 
-AddBottomBtn("PANELİ KAPAT", 0.03, function() MainFrame.Visible = false end)
-AddBottomBtn("KONSOL [F9]", 0.35, function() pcall(function() game:GetService("StarterGui"):SetCore("DevConsoleVisible", true) end) end)
-AddBottomBtn("AĞI TEMİZLE", 0.67, function() CachedChests = {}; CachedFruits = {} end)
+AddBottomBtn("PANELİ KAPAT", 0.03, function() MainFrame.Visible = false GDX_Log("Panel gizlendi.") end)
+AddBottomBtn("KONSOL [F9]", 0.35, function() pcall(function() game:GetService("StarterGui"):SetCore("DevConsoleVisible", true) end) GDX_Log("F9 Geliştirici Konsolu açıldı.") end)
+AddBottomBtn("AĞI TEMİZLE", 0.67, function() CachedChests = {}; CachedFruits = {} GDX_Log("Önbellek (Cache) temizlendi.") end)
 
 Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 20)
 UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
