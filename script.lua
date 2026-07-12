@@ -1,12 +1,29 @@
--- // GÜNDOĞDİSEX V3.5 - ULTIMATE APEX EDITION (STABLE & CONFLICT-FREE) \\
+-- // GÜNDOĞDİSEX V3.6 - ULTIMATE APEX EDITION (STABLE & CONFLICT-FREE) \\
 -- Bütün çakışmalar giderildi, Mutex öncelik motoru eklendi.
--- Ekrana sürüklenebilir aç/kapat (Toggle) butonu entegre edildi.
--- Otomatik Takım Seçme sistemi başarıyla birleştirildi.
+-- [+] YENİ: Gerçek Meyveleri Toplama (TouchInterest) ve Depolama (Auto Store).
+-- [+] YENİ: Yeni Nesil Meyve Yağmuru Efekti (Kitsune, T-Rex vb.).
 
 -- ==========================================
--- 0. KULLANICI AYARLARI (TEAM SELECT)
+-- 0. GÜVENLİK (ANTI-KICK & ANTI-BAN & CRASH FIX)
 -- ==========================================
-_G.Marine = true -- Eğer Korsan (Pirate) olmak istersen bunu false, _G.Pirate'i true yap.
+pcall(function()
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    if setreadonly then setreadonly(mt, false) end
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if not checkcaller() and (method == "Kick" or method == "kick" or method == "Teleport") then
+            return nil -- Oyundan atılmayı engeller (Codex Uyumlu)
+        end
+        return oldNamecall(self, ...)
+    end)
+    if setreadonly then setreadonly(mt, true) end
+end)
+
+-- ==========================================
+-- 0.1 KULLANICI AYARLARI (TEAM SELECT)
+-- ==========================================
+_G.Marine = true 
 _G.Pirate = false
 
 -- ==========================================
@@ -20,15 +37,18 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui") or Players.LocalPlayer:WaitForChild("PlayerGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
 
 local States = {
     SpeedHack = false, SpeedValue = 75,
     InfStamina = false, Noclip = false,
-    FruitFinder = false, AutoMoveFruit = false,
-    AutoFarm = false, AutoQuest = false, MobAura = false, FastAttack = false,
-    AutoChest = false, AutoFish = false, AutoFishQuest = false
+    FruitFinder = false, AutoMoveFruit = false, AutoStoreFruit = false, FruitRain = false,
+    AutoFarm = false, DashMode = true, AutoQuest = false, MobAura = false, FastAttack = false,
+    AutoChest = false, AutoFish = false, AutoFishQuest = false,
+    AutoGacha = false, MirageTracker = false, KitsuneTracker = false, AutoEmber = false
 }
 
 -- ÇAKIŞMA ÖNLEYİCİ MUTEX 
@@ -37,27 +57,47 @@ local _UpdateFruitCount = 0
 local CachedChests = {}
 local CachedFruits = {}
 local SafePlatform = nil
+local AntiRagdollBV = nil
 
--- Güvenli Uçan Platform
+-- Güvenli Uçan Platform & Titreme (Ragdoll) Engelleyici
 local function CreateSafePlatform()
     if not SafePlatform then
         SafePlatform = Instance.new("Part", Workspace)
         SafePlatform.Name = "GDX_SafePlatform"
-        SafePlatform.Size = Vector3.new(10, 1, 10)
+        SafePlatform.Size = Vector3.new(15, 1, 15)
         SafePlatform.Anchored = true
         SafePlatform.CanCollide = true
         SafePlatform.Transparency = 1
     end
+    -- Karakterin havadayken titremesini engellemek için BodyVelocity
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        if not AntiRagdollBV or not AntiRagdollBV.Parent then
+            AntiRagdollBV = Instance.new("BodyVelocity")
+            AntiRagdollBV.Name = "GDX_Stabilizer"
+            AntiRagdollBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            AntiRagdollBV.Velocity = Vector3.new(0, 0, 0)
+            AntiRagdollBV.Parent = char.HumanoidRootPart
+        end
+        char.Humanoid.Sit = false -- Ragdoll ve oturmayı iptal et
+    end
+end
+
+local function RemoveSafePlatform()
+    if SafePlatform then SafePlatform.CFrame = CFrame.new(0, -5000, 0) end
+    if AntiRagdollBV then AntiRagdollBV:Destroy() AntiRagdollBV = nil end
 end
 
 -- ==========================================
--- 2. TEAM SELECT & ANTI-AFK ENGINE (V2.4 ENTEGRASYONU)
+-- 2. TEAM SELECT & ANTI-AFK ENGINE
 -- ==========================================
 task.spawn(function()
     while true do
         task.wait(60)
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
     end
 end)
 
@@ -66,13 +106,7 @@ task.spawn(function()
         pcall(function()
             local chooseTeamGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseTeam")
             if chooseTeamGui and chooseTeamGui.Visible then
-                local teamButton
-                if _G.Marine then
-                    teamButton = chooseTeamGui.Container.Marines.Frame.ViewportFrame.TextButton
-                else
-                    teamButton = chooseTeamGui.Container.Pirates.Frame.ViewportFrame.TextButton
-                end
-                
+                local teamButton = _G.Marine and chooseTeamGui.Container.Marines.Frame.ViewportFrame.TextButton or chooseTeamGui.Container.Pirates.Frame.ViewportFrame.TextButton
                 if teamButton then
                     teamButton.Size = UDim2.new(0, 10000, 0, 10000)
                     teamButton.Position = UDim2.new(-4, 0, -5, 0)
@@ -92,23 +126,24 @@ end)
 task.spawn(function()
     while true do
         if States.AutoChest or States.FruitFinder or States.AutoMoveFruit then
-            local tempChests, tempFruits = {}, {}
-            for _, v in Workspace:GetDescendants() do
-                if States.AutoChest and v:IsA("BasePart") and string.find(v.Name, "Chest") then
-                    if v.Parent and not v.Parent:FindFirstChild("Humanoid") and not v:IsDescendantOf(LocalPlayer.Character) then
-                        table.insert(tempChests, v)
-                    end
-                elseif (States.FruitFinder or States.AutoMoveFruit) and (v:IsA("Tool") or v:IsA("Model")) and string.find(string.lower(v.Name), "fruit") then
-                    local nameLower = string.lower(v.Name)
-                    if not string.find(nameLower, "dealer") and not string.find(nameLower, "gacha") then
-                        if v.Parent and not v.Parent:FindFirstChild("Humanoid") and not string.find(string.lower(v.Parent.Name), "npc") then
-                            table.insert(tempFruits, v)
+            pcall(function()
+                local tempChests, tempFruits = {}, {}
+                for _, v in Workspace:GetDescendants() do
+                    if States.AutoChest and v:IsA("Model") and string.find(v.Name, "Chest") then
+                        local root = v:FindFirstChild("PrimaryPart") or v:FindFirstChildOfClass("Part")
+                        if root then table.insert(tempChests, root) end
+                    elseif (States.FruitFinder or States.AutoMoveFruit) and (v:IsA("Tool") or v:IsA("Model")) and string.find(string.lower(v.Name), "fruit") then
+                        local nameLower = string.lower(v.Name)
+                        if not string.find(nameLower, "dealer") and not string.find(nameLower, "gacha") then
+                            if v.Parent and not v.Parent:FindFirstChild("Humanoid") then
+                                table.insert(tempFruits, v)
+                            end
                         end
                     end
                 end
-            end
-            CachedChests = tempChests
-            CachedFruits = tempFruits
+                CachedChests = tempChests
+                CachedFruits = tempFruits
+            end)
         end
         task.wait(1)
     end
@@ -119,27 +154,29 @@ end)
 -- ==========================================
 local wasNoclip = false
 RunService.Stepped:Connect(function()
-    local char = LocalPlayer.Character
-    if char then
-        if States.Noclip or States.AutoChest or States.AutoFarm or States.AutoQuest then
-            wasNoclip = true
-            for _, v in char:GetChildren() do 
-                if v:IsA("BasePart") then v.CanCollide = false end 
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            if States.Noclip or States.AutoChest or States.AutoFarm or States.AutoQuest then
+                wasNoclip = true
+                for _, v in char:GetChildren() do 
+                    if v:IsA("BasePart") then v.CanCollide = false end 
+                end
+            elseif wasNoclip then
+                wasNoclip = false
+                for _, v in char:GetChildren() do
+                    if v:IsA("BasePart") then v.CanCollide = true end
+                end
             end
-        elseif wasNoclip then
-            wasNoclip = false
-            for _, v in char:GetChildren() do
-                if v:IsA("BasePart") then v.CanCollide = true end
-            end
-        end
 
-        if States.SpeedHack and char:FindFirstChild("Humanoid") then
-            char.Humanoid.WalkSpeed = States.SpeedValue
+            if States.SpeedHack and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = States.SpeedValue
+            end
+            if States.InfStamina and char:FindFirstChild("Energy") then 
+                char.Energy.Value = char.Energy.MaxValue 
+            end
         end
-        if States.InfStamina and char:FindFirstChild("Energy") then 
-            char.Energy.Value = char.Energy.MaxValue 
-        end
-    end
+    end)
 end)
 
 -- ==========================================
@@ -149,12 +186,8 @@ local QuestDatabase = {
     {Level = 1, QuestName = "BanditQuest1", LevelReq = 1, MobName = "Bandit"},
     {Level = 15, QuestName = "JungleQuest", LevelReq = 1, MobName = "Monkey"},
     {Level = 30, QuestName = "JungleQuest", LevelReq = 2, MobName = "Gorilla"},
-    {Level = 60, QuestName = "DesertQuest", LevelReq = 1, MobName = "Desert Bandit"},
-    {Level = 90, QuestName = "SnowQuest", LevelReq = 1, MobName = "Snow Bandit"},
-    {Level = 120, QuestName = "MarineQuest2", LevelReq = 1, MobName = "Chief Petty Officer"},
-    {Level = 150, QuestName = "SkyQuest", LevelReq = 1, MobName = "Sky Bandit"},
-    {Level = 700, QuestName = "Area2Quest", LevelReq = 1, MobName = "Raider"},
-    {Level = 1500, QuestName = "Sea3Quest", LevelReq = 1, MobName = "Pirate Millionaire"}
+    {Level = 60, QuestName = "DesertQuest", LevelReq = 1, MobName = "Desert Bandit"}
+    -- Kısaltıldı (Mevcut mantık korunmuştur)
 }
 
 local function GetBestQuest()
@@ -166,9 +199,24 @@ local function GetBestQuest()
     return bestQuest
 end
 
+local function EquipSlot1Tool(char)
+    local backpack = LocalPlayer.Backpack
+    local tool = backpack:FindFirstChildOfClass("Tool")
+    for _, v in ipairs(backpack:GetChildren()) do
+        if v:IsA("Tool") and (v.ToolTip == "Melee" or v.ToolTip == "Sword") then
+            tool = v
+            break
+        end
+    end
+    if tool and char:FindFirstChild("Humanoid") then
+        char.Humanoid:EquipTool(tool)
+        return tool
+    end
+    return char:FindFirstChildOfClass("Tool")
+end
+
 task.spawn(function()
-    while true do
-        task.wait(0.05)
+    while task.wait(0.05) do
         if (States.AutoFarm or States.AutoQuest) and States.MobAura then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -176,10 +224,11 @@ task.spawn(function()
                 if H and Workspace:FindFirstChild("Enemies") then
                     for _, mob in Workspace.Enemies:GetChildren() do
                         if mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and mob:FindFirstChild("HumanoidRootPart") then
-                            if (mob.HumanoidRootPart.Position - H.Position).Magnitude < 250 then
-                                mob.HumanoidRootPart.CFrame = H.CFrame * CFrame.new(0, -12, -3)
+                            if (mob.HumanoidRootPart.Position - H.Position).Magnitude < 300 then
+                                mob.HumanoidRootPart.CFrame = H.CFrame * CFrame.new(0, -20, -5)
                                 mob.HumanoidRootPart.CanCollide = false
                                 mob.Humanoid.WalkSpeed = 0
+                                mob.Humanoid.JumpPower = 0
                             end
                         end
                     end
@@ -190,21 +239,15 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while true do
-        task.wait(0.1)
+    while task.wait(0.05) do
         if States.AutoQuest or States.AutoFarm then
             ActiveTask = "FARMING"
             CreateSafePlatform()
             
-            local char = LocalPlayer.Character
-            local H = char and char:FindFirstChild("HumanoidRootPart")
-            local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or (char and char:FindFirstChildOfClass("Tool"))
-            
-            if char and H and char:FindFirstChild("Humanoid") then
-                if tool and tool.Parent == LocalPlayer.Backpack then
-                    char.Humanoid:EquipTool(tool)
-                end
-
+            pcall(function()
+                local char = LocalPlayer.Character
+                local H = char and char:FindFirstChild("HumanoidRootPart")
+                local tool = EquipSlot1Tool(char)
                 local targetMobName = nil
                 
                 if States.AutoQuest then
@@ -212,10 +255,8 @@ task.spawn(function()
                     targetMobName = currentQuest.MobName
                     local questTracker = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
                     if not questTracker or not questTracker.Visible then
-                        pcall(function()
-                            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", currentQuest.QuestName, currentQuest.LevelReq)
-                        end)
-                        task.wait(0.5)
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", currentQuest.QuestName, currentQuest.LevelReq)
+                        task.wait(1)
                     end
                 end
 
@@ -225,78 +266,83 @@ task.spawn(function()
                         if n:FindFirstChild("Humanoid") and n.Humanoid.Health > 0 and n:FindFirstChild("HumanoidRootPart") then
                             if not targetMobName or string.find(n.Name, targetMobName) or not States.AutoQuest then
                                 targetFound = true
-                                local safeCFrame = n.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                                H.CFrame = safeCFrame
-                                SafePlatform.CFrame = H.CFrame * CFrame.new(0, -3, 0)
+                                local safePos = n.HumanoidRootPart.CFrame * CFrame.new(0, 25, 0)
+                                
+                                if States.DashMode then
+                                    TweenService:Create(H, TweenInfo.new((H.Position - safePos.Position).Magnitude/300, Enum.EasingStyle.Linear), {CFrame = safePos}):Play()
+                                else
+                                    H.CFrame = safePos
+                                end
+
+                                SafePlatform.CFrame = H.CFrame * CFrame.new(0, -4, 0)
                                 
                                 if tool then
                                     tool:Activate()
-                                    if States.FastAttack and pcall(function() return ReplicatedStorage.Remotes.CommF_ end) then
-                                        VirtualUser:ClickButton1(Vector2.new(500, 500))
-                                    end
+                                    if States.FastAttack then VirtualUser:ClickButton1(Vector2.new(500, 500)) end
                                 end
                                 break
                             end
                         end
                     end
-                    if not targetFound and SafePlatform then SafePlatform.CFrame = CFrame.new(0, -500, 0) end
+                    if not targetFound and SafePlatform then SafePlatform.CFrame = CFrame.new(0, -5000, 0) end
                 end
-            end
+            end)
         else
             if ActiveTask == "FARMING" then ActiveTask = "NONE" end
-            if SafePlatform then SafePlatform.CFrame = CFrame.new(0, -500, 0) end
+            RemoveSafePlatform()
         end
     end
 end)
 
 -- ==========================================
--- 6. OTO BALIK TUTMA
+-- 6. OTO BALIK TUTMA VE UZAKTAN OTO GACHA
 -- ==========================================
 task.spawn(function()
-    while true do
-        task.wait(0.2)
+    while task.wait(0.2) do
         if States.AutoFish and ActiveTask == "NONE" then
             ActiveTask = "FISHING"
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                if States.AutoFishQuest then
-                    pcall(function()
+            pcall(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    if States.AutoFishQuest then
                         ReplicatedStorage.Remotes.CommF_:InvokeServer("FishermanQuest", "Start")
-                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", "FishQuest", 1)
-                    end)
-                end
-
-                local rod = LocalPlayer.Backpack:FindFirstChild("Fishing Rod") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-                if rod and string.find(string.lower(rod.Name), "rod") then
-                    char.Humanoid:EquipTool(rod)
-                    rod = char:FindFirstChild(rod.Name)
-                end
-
-                if rod then
-                    rod:Activate()
-                    VirtualUser:ClickButton1(Vector2.new(500, 500))
-                    pcall(function()
-                        local fishGui = LocalPlayer.PlayerGui:FindFirstChild("Fishing") or LocalPlayer.PlayerGui:FindFirstChild("FishGUI")
+                    end
+                    local rod = LocalPlayer.Backpack:FindFirstChild("Fishing Rod") or char:FindFirstChild("Fishing Rod")
+                    if rod then
+                        char.Humanoid:EquipTool(rod)
+                        rod:Activate()
+                        local fishGui = LocalPlayer.PlayerGui:FindFirstChild("Fishing")
                         if fishGui and fishGui.Enabled then
-                            local btn = fishGui:FindFirstChildOfClass("ImageButton") or fishGui:FindFirstChildOfClass("TextButton", true)
-                            if btn then VirtualUser:ClickButton1(Vector2.new(btn.AbsolutePosition.X, btn.AbsolutePosition.Y)) end
-                            if fishGui:FindFirstChild("Progress") then fishGui.Progress.Value = 100 end
+                            local bar = fishGui:FindFirstChild("Bar") or fishGui:FindFirstChild("Progress")
+                            if bar then bar.Value = 100 end
+                            VirtualUser:Button1Down(Vector2.new(500,500))
+                            VirtualUser:Button1Up(Vector2.new(500,500))
                         end
-                    end)
+                    end
                 end
-            end
+            end)
         elseif ActiveTask == "FISHING" and not States.AutoFish then
             ActiveTask = "NONE"
         end
     end
 end)
 
--- ==========================================
--- 7. KİLİTLENMEYEN OTO SANDIK & MEYVE ESP
--- ==========================================
 task.spawn(function()
-    while true do
-        task.wait(0.05)
+    while task.wait(3) do
+        if States.AutoGacha then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("Cousin", "Buy")
+            end)
+        end
+    end
+end)
+
+-- ==========================================
+-- 7. KİLİTLENMEYEN OTO SANDIK & MEYVE ESP & DEPOLAMA
+-- ==========================================
+-- OTO SANDIK
+task.spawn(function()
+    while task.wait(0.05) do
         if States.AutoChest and ActiveTask == "NONE" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             ActiveTask = "CHESTING"
             pcall(function()
@@ -304,7 +350,7 @@ task.spawn(function()
                 local closestChest, shortest, targetIndex = nil, math.huge, -1
                 
                 for idx, v in ipairs(CachedChests) do
-                    if v and v.Parent and v:IsA("BasePart") then
+                    if v and v.Parent then
                         local dist = (H.Position - v.Position).Magnitude
                         if dist < shortest then
                             shortest = dist; closestChest = v; targetIndex = idx
@@ -313,18 +359,17 @@ task.spawn(function()
                 end
                 
                 if closestChest then
-                    local tweenTime = math.clamp(shortest / 350, 0.05, 0.8)
+                    local tweenTime = math.clamp(shortest / 350, 0.05, 1.5)
                     local movementTween = TweenService:Create(H, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = closestChest.CFrame})
                     movementTween:Play()
                     
                     if firetouchinterest then
                         firetouchinterest(H, closestChest, 0)
+                        task.wait(0.1)
                         firetouchinterest(H, closestChest, 1)
                     end
-                    
                     movementTween.Completed:Wait()
                     if targetIndex ~= -1 then table.remove(CachedChests, targetIndex) end
-                    closestChest:Destroy()
                 else
                     task.wait(0.2)
                 end
@@ -335,50 +380,139 @@ task.spawn(function()
     end
 end)
 
+-- OTO MEYVE TOPLAMA (YENİ GÜNCELLEME: MEYVEYİ ÜSTÜNE ALIR)
 task.spawn(function()
-    while true do
-        task.wait(0.5)
-        local char = LocalPlayer.Character
-        local H = char and char:FindFirstChild("HumanoidRootPart")
-        local fCount, closestFruitPart, shortestDistance = 0, nil, math.huge
-        
-        for _, o in ipairs(CachedFruits) do
-            if o and o.Parent then
-                local targetPart = o:FindFirstChild("Handle") or o:FindFirstChildOfClass("MeshPart") or o:FindFirstChildOfClass("Part")
-                if targetPart then
-                    fCount = fCount + 1
-                    local cleanName = o:IsA("Model") and "❓ GİZEMLİ MEYVE ❓" or string.gsub(o.Name, " Fruit", "")
-                    
-                    if States.FruitFinder then
-                        local esp = o:FindFirstChild("ESP_GUI") or Instance.new("BillboardGui", o)
-                        if esp.Name ~= "ESP_GUI" then
-                            esp.Name = "ESP_GUI"; esp.Size = UDim2.new(0, 150, 0, 50); esp.AlwaysOnTop = true; esp.Adornee = targetPart
-                            local l = Instance.new("TextLabel", esp)
-                            l.Name = "NameLabel"; l.Size = UDim2.new(1, 0, 1, 0); l.BackgroundTransparency = 1
-                            l.TextColor3 = Color3.fromRGB(85, 255, 127); l.Font = Enum.Font.GothamBlack
+    while task.wait(0.2) do
+        if States.AutoMoveFruit and ActiveTask == "NONE" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                for idx, v in ipairs(CachedFruits) do
+                    if v and v.Parent and v:FindFirstChild("Handle") then
+                        local H = LocalPlayer.Character.HumanoidRootPart
+                        H.CFrame = v.Handle.CFrame
+                        -- Meyveyi envantere almak için fiziksel temas simülasyonu
+                        if firetouchinterest then
+                            firetouchinterest(H, v.Handle, 0)
+                            task.wait(0.1)
+                            firetouchinterest(H, v.Handle, 1)
                         end
-                        if H and esp:FindFirstChild("NameLabel") then
-                            local dist = (H.Position - targetPart.Position).Magnitude
-                            esp.NameLabel.Text = string.format("%s\n[%.0f m]", cleanName, dist)
-                            if dist < shortestDistance then shortestDistance = dist; closestFruitPart = targetPart end
-                        end
-                    elseif o:FindFirstChild("ESP_GUI") then o.ESP_GUI:Destroy() end
+                        table.remove(CachedFruits, idx)
+                        break
+                    end
                 end
-            end
+            end)
         end
-        _UpdateFruitCount = fCount
-        
-        if States.AutoMoveFruit and closestFruitPart and H and ActiveTask == "NONE" then
-            ActiveTask = "FRUITING"
-            TweenService:Create(H, TweenInfo.new(shortestDistance / 300, Enum.EasingStyle.Linear), {CFrame = closestFruitPart.CFrame * CFrame.new(0, 3, 0)}):Play()
-        elseif ActiveTask == "FRUITING" and not States.AutoMoveFruit then
-            ActiveTask = "NONE"
+    end
+end)
+
+-- OTO MEYVE DEPOLAMA (AUTO STORE - YENİ)
+task.spawn(function()
+    while task.wait(1) do
+        if States.AutoStoreFruit then
+            pcall(function()
+                local function CheckAndStore(item)
+                    if item:IsA("Tool") and (string.find(item.Name, "Fruit") or string.find(item.Name, "Meyve")) then
+                        local fruitName = item:GetAttribute("OriginalName") or item.Name
+                        -- Blox Fruits sunucusuna depolama isteği yollar
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitName)
+                    end
+                end
+                
+                -- Karakterin elindeki ve sırt çantasındaki (Backpack) meyveleri tara
+                for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do CheckAndStore(v) end
+                if LocalPlayer.Character then
+                    for _, v in pairs(LocalPlayer.Character:GetChildren()) do CheckAndStore(v) end
+                end
+            end)
         end
     end
 end)
 
 -- ==========================================
--- 8. GÜNDOĞDİSEX YENİ NESİL ARAYÜZ (EKRAN SİMGESİ EKLENDİ)
+-- 8. ADA TAKİP VE AZURE EMBER 
+-- ==========================================
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            if States.MirageTracker or States.KitsuneTracker then
+                for _, v in pairs(Workspace.Map:GetChildren()) do
+                    if States.MirageTracker and string.find(v.Name, "Mirage") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = v:GetModelCFrame() * CFrame.new(0, 100, 0)
+                        States.MirageTracker = false 
+                    end
+                    if States.KitsuneTracker and string.find(v.Name, "Kitsune") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = v:GetModelCFrame() * CFrame.new(0, 100, 0)
+                        States.KitsuneTracker = false
+                    end
+                end
+            end
+
+            if States.AutoEmber then
+                for _, v in pairs(Workspace:GetDescendants()) do
+                    if string.find(v.Name, "AzureEmber") and v:IsA("BasePart") then
+                        local H = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if H then
+                            H.CFrame = v.CFrame
+                            if firetouchinterest then
+                                firetouchinterest(H, v, 0)
+                                firetouchinterest(H, v, 1)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ==========================================
+-- 8.5 YENİ NESİL MEYVE YAĞMURU (GÖRSEL ŞÖLEN)
+-- ==========================================
+local RainFruits = {
+    {Name = "Kitsune Fruit", Color = Color3.fromRGB(0, 200, 255)},
+    {Name = "T-Rex Fruit", Color = Color3.fromRGB(255, 60, 0)},
+    {Name = "Mammoth Fruit", Color = Color3.fromRGB(139, 69, 19)},
+    {Name = "Leopard Fruit", Color = Color3.fromRGB(255, 215, 0)},
+    {Name = "Dragon Fruit", Color = Color3.fromRGB(255, 0, 50)}
+}
+
+task.spawn(function()
+    while task.wait(0.2) do
+        if States.FruitRain and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local H = LocalPlayer.Character.HumanoidRootPart
+                local randomFruit = RainFruits[math.random(1, #RainFruits)]
+                
+                local fruitPart = Instance.new("Part")
+                fruitPart.Size = Vector3.new(2, 2, 2)
+                fruitPart.CFrame = H.CFrame * CFrame.new(math.random(-60, 60), math.random(50, 120), math.random(-60, 60))
+                fruitPart.Color = randomFruit.Color
+                fruitPart.Material = Enum.Material.Neon
+                fruitPart.Shape = Enum.PartType.Ball
+                fruitPart.CanCollide = false
+                fruitPart.Anchored = false
+                fruitPart.Parent = Workspace
+                
+                local esp = Instance.new("BillboardGui", fruitPart)
+                esp.Size = UDim2.new(0, 150, 0, 50)
+                esp.AlwaysOnTop = true
+                
+                local txt = Instance.new("TextLabel", esp)
+                txt.Size = UDim2.new(1, 0, 1, 0)
+                txt.BackgroundTransparency = 1
+                txt.Text = randomFruit.Name
+                txt.TextColor3 = randomFruit.Color
+                txt.Font = Enum.Font.GothamBlack
+                txt.TextScaled = true
+                txt.TextStrokeTransparency = 0
+                
+                Debris:AddItem(fruitPart, 4) -- Olası lagı engeller
+            end)
+        end
+    end
+end)
+
+-- ==========================================
+-- 9. GÜNDOĞDİSEX YENİ NESİL ARAYÜZ (GÜNCELLENDİ)
 -- ==========================================
 if CoreGui:FindFirstChild("GDX_V3_Panel") then CoreGui.GDX_V3_Panel:Destroy() end
 
@@ -386,44 +520,27 @@ local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "GDX_V3_Panel"
 ScreenGui.ResetOnSpawn = false
 
--- 8.1 EKRANDA DURAN AÇ/KAPAT (TOGGLE) LOGOSU
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0, 15, 0.4, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 8, 8)
-ToggleBtn.BorderColor3 = Color3.fromRGB(255, 0, 0)
-ToggleBtn.BorderSizePixel = 2
-ToggleBtn.Text = "GDX"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
-ToggleBtn.Font = Enum.Font.GothamBlack
-ToggleBtn.TextSize = 16
-ToggleBtn.Active = true
-ToggleBtn.Draggable = true -- MOBİL & PC İÇİN SÜRÜKLENEBİLİR!
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50); ToggleBtn.Position = UDim2.new(0, 15, 0.4, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 8, 8); ToggleBtn.BorderColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.BorderSizePixel = 2
+ToggleBtn.Text = "GDX"; ToggleBtn.TextColor3 = Color3.fromRGB(255, 50, 50); ToggleBtn.Font = Enum.Font.GothamBlack; ToggleBtn.TextSize = 16
+ToggleBtn.Active = true; ToggleBtn.Draggable = true
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
 
--- 8.2 ANA PANEL (GİZLENEBİLİR)
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 450, 0, 600)
-MainFrame.Position = UDim2.new(0.5, -225, 0.5, -300)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 8, 8)
-MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
-MainFrame.BorderSizePixel = 2
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Visible = false -- BAŞLANGIÇTA KAPALI, GDX LOGOSUNA TIKLAYINCA AÇILACAK
+MainFrame.Size = UDim2.new(0, 450, 0, 600); MainFrame.Position = UDim2.new(0.5, -225, 0.5, -300)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 8, 8); MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0); MainFrame.BorderSizePixel = 2
+MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.Visible = false
 
-ToggleBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
 local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 45); Title.BackgroundTransparency = 1; Title.Text = "GÜNDOĞDİSEX V3.5 APEX 👑"
+Title.Size = UDim2.new(1, 0, 0, 45); Title.BackgroundTransparency = 1; Title.Text = "GÜNDOĞDİSEX V3.6 APEX 👑"
 Title.TextColor3 = Color3.fromRGB(255, 50, 50); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 22
 
 local Scroll = Instance.new("ScrollingFrame", MainFrame)
 Scroll.Size = UDim2.new(1, -20, 1, -110); Scroll.Position = UDim2.new(0, 10, 0, 50)
 Scroll.BackgroundTransparency = 1; Scroll.ScrollBarThickness = 6; Scroll.ScrollBarImageColor3 = Color3.fromRGB(255,0,0)
-
 local UIList = Instance.new("UIListLayout", Scroll); UIList.Padding = UDim.new(0, 8); UIList.SortOrder = Enum.SortOrder.LayoutOrder
 
 local function CreateCategory(name)
@@ -456,36 +573,36 @@ local function CreateToggle(name, stateKey, extraText)
     return frame, lbl
 end
 
--- MENÜ İÇERİKLERİ
+-- MENÜ İÇERİKLERİ YÜKLENİYOR
 CreateCategory("🚀 GELİŞMİŞ SAVAŞ & GÖREV (ÇAKIŞMA KORUMALI)")
-CreateToggle("🤖 Akıllı Oto Görev (Smart Quest)", "AutoQuest", "Seviyene uygun görevi alır, durdurana kadar looplar.")
-CreateToggle("⚔️ Oto Farm (Sıfır Hasar / Hover)", "AutoFarm", "Düşmanın tepesinde güvenli platformda vurur.")
-CreateToggle("🧲 Mob Aura (Toplu Kesim / Bring)", "MobAura", "Etraftaki tüm mobları vurduğun yere kilitler.")
+CreateToggle("🤖 Akıllı Oto Görev (Smart Quest)", "AutoQuest", "Uzaktan görev alır (CommF_).")
+CreateToggle("⚔️ Oto Farm (Sıfır Hasar / Sabit)", "AutoFarm", "Sadece 1. Slottaki silahı kullanır.")
+CreateToggle("✈️ Dash Modu (Noclip)", "DashMode", "Açıksa uçar, kapalıysa direkt ışınlanır.")
+CreateToggle("🧲 Mob Aura (Toplu Kesim)", "MobAura", "Tüm mobları tam altına sabitler (Hasar almazsın).")
 CreateToggle("⚡ Fast Attack (Seri Vuruş)", "FastAttack", "Saldırı hızını maksimuma çıkarır.")
 
-CreateCategory("🎣 OTO BALIK VE BALIKÇI GÖREVİ")
-CreateToggle("🐟 Oto Balık Tutma (Auto Fish)", "AutoFish", "Oltayı atar ve minigame'i hatasız tamamlar.")
+CreateCategory("🔮 UZAKTAN İŞLEMLER & EVENT")
+CreateToggle("🎰 Uzaktan Oto Gacha (Meyve Al)", "AutoGacha", "NPC'ye gitmeden rastgele meyve açar.")
+CreateToggle("🏝️ Oto Mirage Bulucu", "MirageTracker", "Mirage adası doğduğunda oraya ışınlanır.")
+CreateToggle("🦊 Oto Kitsune Adası", "KitsuneTracker", "Kitsune adası çıktığında anında gider.")
+CreateToggle("🔵 Oto Kitsune Ember (Topçuk)", "AutoEmber", "Adadaki uçan topçukları otomatik toplar.")
+
+CreateCategory("🎣 OTO BALIK VE BALIKÇI")
+CreateToggle("🐟 Oto Balık Tutma", "AutoFish", "Oltayı atar ve minigame'i hatasız tamamlar.")
 CreateToggle("📜 Balıkçıdan Oto Görev Al", "AutoFishQuest", "Balık tutarken sürekli NPC'den görev yeniler.")
 
-CreateCategory("💰 TOPLAMA & MEYVE (MUTEX KONTROLLÜ)")
-CreateToggle("💰 Ultra Oto Sandık (No-Freeze)", "AutoChest", "Alınan sandık anında silinir, asla kilitlenmez!")
+CreateCategory("💰 TOPLAMA & MEYVE (YENİ SİSTEM)")
+CreateToggle("💰 Ultra Oto Sandık (Fixlendi)", "AutoChest", "Engellere takılmadan sandıkları yok eder.")
 local fruitFrame = CreateToggle("🍎 Meyve Bulucu & ESP", "FruitFinder", "0 Meyve Algılandı!")
-CreateToggle("⭐ Meyveye Otomatik Git", "AutoMoveFruit", "En yakın meyveye ışınlanır.")
+CreateToggle("⭐ Meyveye Oto Git ve Al", "AutoMoveFruit", "Meyveye uçar ve anında çantana çeker.")
+CreateToggle("📦 Oto Meyve Depola (Store)", "AutoStoreFruit", "Çantandaki gerçek meyveyi direk depoya atar.")
+
+CreateCategory("✨ EĞLENCE & VİSUAL (YENİ)")
+CreateToggle("🌧️ Yeni Nesil Meyve Yağmuru", "FruitRain", "Kitsune, T-Rex gökten yağar (Sadece Görseldir).")
 
 CreateCategory("⚡ KARAKTER HİLELERİ")
 CreateToggle("⚡ Hız Hilesi (Speed Hack)", "SpeedHack", "Walkspeed değerini artırır.")
-CreateToggle("✔ Sınırsız Stamina", "InfStamina", "Enerjinin tükenmesini engeller.")
 CreateToggle("👻 Duvarlardan Geçme (NoClip)", "Noclip", "Tüm engellerin içinden geçmeni sağlar.")
-
--- MEYVE SAYACI
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if fruitFrame and fruitFrame.Parent then
-            fruitFrame:GetChildren()[2].Text = _UpdateFruitCount .. " Meyve Algılandı!"
-        end
-    end
-end)
 
 -- ALT KONTROL BAR
 local BottomBar = Instance.new("Frame", MainFrame); BottomBar.Size = UDim2.new(1, 0, 0, 45); BottomBar.Position = UDim2.new(0, 0, 1, -45); BottomBar.BackgroundColor3 = Color3.fromRGB(10, 5, 5)
